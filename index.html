@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portafoglio Fondi</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; margin: 0 auto; }
+        
+        .main-table { max-width: 1100px; margin-bottom: 10px; }
+        .main-table th, .main-table td { border: 2px solid #000; padding: 4px 8px; text-align: right; font-size: 0.95em; }
+        .main-table thead th { text-align: center; vertical-align: middle; }
+        
+        .main-table .header-top th { font-weight: normal; font-style: italic; font-size: 0.65em; color: #666; line-height: 1.1; padding: 2px 4px; border-bottom: 1px solid transparent; }
+        .main-table .header-bottom th { font-weight: bold; font-size: 0.9em; }
+        
+        .col-nome-container { display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; white-space: nowrap; }
+        .col-nome-testo { overflow: hidden; text-overflow: ellipsis; margin-right: 10px; }
+        .col-azioni { display: flex; gap: 4px; flex-shrink: 0; }
+
+        .bg-yellow { background-color: #ffff00; }
+        .bg-green { background-color: #92d050; }
+        
+        .history-container { width: 100%; overflow-x: auto; margin-top: 30px; }
+        
+        .btn { display: inline-block; padding: 8px 16px; font-size: 13px; font-weight: bold; color: white; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .btn-salva { background-color: #0078D7; margin-bottom: 15px; }
+        .btn-salva:hover { background-color: #005a9e; }
+        
+        .btn-table-action { background-color: #28a745; padding: 4px 8px; font-size: 11px; margin-right: 4px; margin-bottom: 0; }
+        .btn-table-action:hover { background-color: #218838; }
+        .btn-refresh { background-color: #17a2b8; }
+        .btn-refresh:hover { background-color: #138496; }
+        
+        .action-icon { cursor: pointer; font-size: 1.1em; text-decoration: none; }
+        
+        .history-table { font-size: 0.85em; border: 1px solid #ccc; }
+        .history-table th, .history-table td { border: 1px solid #ddd; padding: 6px 4px; text-align: right; }
+        .history-table th { background-color: #f5f5f5; text-align: center; vertical-align: middle; }
+        .history-table .sub-header { display: block; font-size: 0.85em; font-weight: bold; color: #333; margin-top: 4px; }
+        
+        .text-center { text-align: center !important; }
+        .text-left { text-align: left !important; }
+        .text-positive { color: #008000; font-weight: bold; }
+        .text-negative { color: #cc0000; font-weight: bold; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 320px; }
+        .modal h3 { margin-top: 0; color: #333; font-size: 18px; }
+        .modal label { display: block; margin-top: 10px; font-size: 14px; font-weight: bold; color: #555;}
+        .modal input { width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .modal-buttons { margin-top: 20px; text-align: right; }
+        .modal-buttons button { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-cancel { background-color: #ccc; color: #333; margin-right: 10px; }
+        .btn-confirm { background-color: #0078D7; color: white; }
+        
+        #statusMessage { font-size: 0.85em; font-style: italic; color: #0078D7; margin-bottom: 20px; min-height: 20px; display: block; }
+
+        /* Stili per la console di DEBUG */
+        #debugConsole {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            padding: 10px;
+            height: 250px;
+            overflow-y: scroll;
+            border-radius: 5px;
+            margin-top: 40px;
+            border: 2px solid #555;
+        }
+        .log-error { color: #ff5555; font-weight: bold; }
+        .log-warn { color: #ffaa00; }
+        .log-info { color: #aaaaaa; }
+    </style>
+</head>
+<body>
+
+    <table class="main-table" id="portfolioTable">
+        <thead>
+            <tr class="header-top">
+                <th style="width: 240px;"></th>
+                <th>Di solito non cambia a meno che sia azionario</th>
+                <th>Di solito non cambia a meno che sia azionario</th>
+                <th>deve auto aggiornarsi<br>(prezzo di mercato)</th>
+                <th>qte possedute * valore 1 quota</th>
+                <th>Valore che possiedo<br>caricato - totale</th>
+                <th></th>
+            </tr>
+            <tr class="header-bottom">
+                <th style="text-align: left; white-space: nowrap;">
+                    <button class="btn btn-table-action" onclick="apriModalAggiungi()">➕ Aggiungi</button>
+                    <button class="btn btn-table-action btn-refresh" onclick="avviaAggiornamentoDati()">🔄 Aggiorna</button>
+                </th>
+                <th>caricato</th>
+                <th>qte possedute</th>
+                <th>valore 1 quota</th>
+                <th>totale</th>
+                <th></th>
+                <th>aggiornato al</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Generato da JS -->
+        </tbody>
+    </table>
+    
+    <span id="statusMessage"></span>
+
+    <hr style="border: 1px solid #eee; margin: 20px 0;">
+
+    <div class="history-container">
+        <button class="btn btn-salva" onclick="salvaCronologia()">💾 Salva Cronologia Odierna</button>
+        <table class="history-table" id="historyTable">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- BOX DI LOG DEBUG -->
+    <div id="debugConsole">
+        <div>=== INIZIO LOG DI SISTEMA ===</div>
+        <div class="log-info">In attesa del comando di aggiornamento...</div>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal-overlay" id="editModalOverlay">
+        <div class="modal">
+            <h3 id="editTitle">Modifica Valori</h3>
+            <input type="hidden" id="editIndex">
+            <label>Caricato (€)</label><input type="number" id="editCaricato" step="0.01">
+            <label>Q.tà possedute</label><input type="number" id="editQte" step="0.001">
+            <label>Prezzo (Valore 1 Quota)</label><input type="number" id="editPrezzo" step="0.001">
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="chiudiModal('editModalOverlay')">Annulla</button>
+                <button class="btn-confirm" onclick="salvaModifiche()">Aggiorna Valori</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="addModalOverlay">
+        <div class="modal">
+            <h3>Aggiungi Nuovo Titolo</h3>
+            <label>Nome (es. Hestia Cnsrv)</label><input type="text" id="addNome" placeholder="Nome fondo">
+            <label>ISIN</label><input type="text" id="addIsin" placeholder="Es. LU1435778565">
+            <label>Caricato (€)</label><input type="number" id="addCaricato" step="0.01" value="0">
+            <label>Q.tà possedute</label><input type="number" id="addQte" step="0.001" value="0">
+            <label>Prezzo Attuale (Valore 1 Quota)</label><input type="number" id="addPrezzo" step="0.001" value="0">
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="chiudiModal('addModalOverlay')">Annulla</button>
+                <button class="btn-confirm" onclick="salvaNuovoTitolo()">Aggiungi</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const defaultPortafoglio = [
+            { nome: "Energia", isin: "IT0001260618", caricato: 3216.50, qte: 181.334, prezzoNav: 22.130, lastUpdate: "-" },
+            { nome: "Obb 3Y", isin: "IT0005579112", caricato: 9995.00, qte: 1987.472, prezzoNav: 5.123, lastUpdate: "-" },
+            { nome: "Difesa 85", isin: "IT0005480287", caricato: 9757.21, qte: 1549.747, prezzoNav: 6.360, lastUpdate: "-" },
+            { nome: "Eurizon 40", isin: "IT0001080388", caricato: 835.22, qte: 73.252, prezzoNav: 11.570, lastUpdate: "-" },
+            { nome: "Escx 27", isin: "XS2469378264", caricato: 3467.64, qte: 3, prezzoNav: 1213.760, lastUpdate: "-" }
+        ];
+
+        let portafoglio = JSON.parse(localStorage.getItem('portafoglioDati')) || defaultPortafoglio;
+        let historyData = JSON.parse(localStorage.getItem('portafoglioHistory')) || [];
+
+        function salvaDatiNelBrowser() { localStorage.setItem('portafoglioDati', JSON.stringify(portafoglio)); }
+
+        function formatEuro2(val) { return '€ ' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }); }
+        function formatEuro3(val) { return '€ ' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3, useGrouping: true }); }
+        function formatQte(val) { return Number(val).toLocaleString('it-IT', { maximumFractionDigits: 3, useGrouping: true }); }
+
+        // === FUNZIONE DI LOGGING ===
+        function addLog(msg, type = 'normal') {
+            const consoleDiv = document.getElementById('debugConsole');
+            const time = new Date().toLocaleTimeString('it-IT');
+            let colorClass = '';
+            if (type === 'error') colorClass = 'log-error';
+            else if (type === 'warn') colorClass = 'log-warn';
+            else if (type === 'info') colorClass = 'log-info';
+            
+            consoleDiv.innerHTML += `<div class="${colorClass}">[${time}] ${msg}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight; // Auto-scroll in basso
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector("#portfolioTable tbody");
+            tbody.innerHTML = "";
+            portafoglio.forEach((fondo, index) => {
+                const totale = fondo.qte * fondo.prezzoNav;
+                const plusvalenza = totale - fondo.caricato; 
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td class="text-left">
+                        <div class="col-nome-container">
+                            <span class="col-nome-testo"><strong>${fondo.nome} - ${fondo.isin}</strong></span>
+                            <div class="col-azioni">
+                                <span class="action-icon" onclick="apriModalModifica(${index})" title="Modifica Valori">✏️</span>
+                                <span class="action-icon" onclick="eliminaTitolo(${index})" title="Elimina Titolo">🗑️</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="bg-yellow">${formatEuro2(fondo.caricato)}</td>
+                    <td class="bg-yellow">${formatQte(fondo.qte)}</td>
+                    <td class="bg-yellow">${formatEuro3(fondo.prezzoNav)}</td>
+                    <td class="bg-green">${formatEuro3(totale)}</td>
+                    <td class="bg-green">${formatEuro2(plusvalenza)}</td>
+                    <td class="text-center" style="font-size: 0.8em; color: #555;">${fondo.lastUpdate || "-"}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ... (Funzioni CRUD Modals intatte)
+        function apriModalModifica(index) {
+            const fondo = portafoglio[index];
+            document.getElementById('editTitle').innerText = fondo.nome + " - " + fondo.isin;
+            document.getElementById('editIndex').value = index;
+            document.getElementById('editCaricato').value = fondo.caricato;
+            document.getElementById('editQte').value = fondo.qte;
+            document.getElementById('editPrezzo').value = fondo.prezzoNav;
+            document.getElementById('editModalOverlay').style.display = 'block';
+        }
+
+        function salvaModifiche() {
+            const index = document.getElementById('editIndex').value;
+            const nuovoCaricato = parseFloat(document.getElementById('editCaricato').value);
+            const nuoveQte = parseFloat(document.getElementById('editQte').value);
+            const nuovoPrezzo = parseFloat(document.getElementById('editPrezzo').value);
+            if (!isNaN(nuovoCaricato) && !isNaN(nuoveQte) && !isNaN(nuovoPrezzo)) {
+                portafoglio[index].caricato = nuovoCaricato;
+                portafoglio[index].qte = nuoveQte;
+                portafoglio[index].prezzoNav = nuovoPrezzo;
+                let now = new Date();
+                portafoglio[index].lastUpdate = "Manuale " + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+                salvaDatiNelBrowser();
+                renderTable();
+                chiudiModal('editModalOverlay');
+                addLog(`Modifica manuale salvata per ${portafoglio[index].isin}`, 'warn');
+            } else { alert("Inserisci valori numerici validi."); }
+        }
+
+        function apriModalAggiungi() {
+            document.getElementById('addNome').value = ""; document.getElementById('addIsin').value = "";
+            document.getElementById('addCaricato').value = "0"; document.getElementById('addQte').value = "0"; document.getElementById('addPrezzo').value = "0";
+            document.getElementById('addModalOverlay').style.display = 'block';
+        }
+
+        function salvaNuovoTitolo() {
+            const nome = document.getElementById('addNome').value.trim(); const isin = document.getElementById('addIsin').value.trim();
+            const caricato = parseFloat(document.getElementById('addCaricato').value); const qte = parseFloat(document.getElementById('addQte').value); const prezzo = parseFloat(document.getElementById('addPrezzo').value);
+            if (nome && isin && !isNaN(caricato) && !isNaN(qte) && !isNaN(prezzo)) {
+                const nuovoFondo = { nome: nome, isin: isin, caricato: caricato, qte: qte, prezzoNav: prezzo, lastUpdate: "Inserito " + new Date().toLocaleDateString('it-IT') };
+                portafoglio.push(nuovoFondo); salvaDatiNelBrowser(); renderTable(); renderHistory(); chiudiModal('addModalOverlay');
+            } else { alert("Compila tutti i campi correttamente."); }
+        }
+
+        function eliminaTitolo(index) {
+            if (confirm("Sei sicuro di voler eliminare " + portafoglio[index].nome + "?")) { portafoglio.splice(index, 1); salvaDatiNelBrowser(); renderTable(); renderHistory(); }
+        }
+        function chiudiModal(id) { document.getElementById(id).style.display = 'none'; }
+
+
+        // ================= FUNZIONE DI RETE CON LOGGING =================
+        async function fetchPrezzoDalSito(isin) {
+            const urlSito = `https://www.fondionline.it/ricerca?isin=${isin}`;
+            const proxyUrl = `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(urlSito)}`;
+            
+            addLog(`----------------------------------------`);
+            addLog(`Inizio procedura per ISIN: ${isin}`);
+            addLog(`Interrogo Proxy: ${proxyUrl}`, 'info');
+
+            try {
+                addLog(`In attesa della risposta HTTP dal server...`);
+                const response = await fetch(proxyUrl);
+                
+                addLog(`Codice di stato HTTP ricevuto: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    addLog(`ERRORE: Il server proxy ha rifiutato la richiesta o è bloccato dal tuo browser. (Status: ${response.status})`, 'error');
+                    return null;
+                }
+                
+                addLog(`Download del codice HTML in corso...`);
+                const htmlStr = await response.text();
+                addLog(`HTML scaricato. Dimensione: ${htmlStr.length} caratteri.`);
+
+                // Controllo Anti-Bot / Cloudflare
+                if(htmlStr.toLowerCase().includes('cloudflare') || htmlStr.includes('Attention Required')) {
+                    addLog(`ATTENZIONE CRITICA: Rilevato blocco Cloudflare/Anti-bot. Il sito Fondionline sta bloccando il proxy.`, 'error');
+                }
+                if(htmlStr.includes('Nessun risultato') || htmlStr.length < 1000) {
+                    addLog(`ATTENZIONE: La pagina sembra vuota o l'ISIN non è stato trovato dal motore di ricerca del sito.`, 'warn');
+                }
+
+                addLog(`Analisi del DOM alla ricerca del tag td[data-label="Prezzo Ufficiale"]...`);
+                const doc = new DOMParser().parseFromString(htmlStr, 'text/html');
+                const prezzoElemento = doc.querySelector('td[data-label="Prezzo Ufficiale"]');
+                
+                if (prezzoElemento) {
+                    let testoGrezzo = prezzoElemento.innerText;
+                    addLog(`SUCCESSO! Elemento trovato. Testo grezzo: "${testoGrezzo.trim()}"`);
+                    let numeroPulito = parseFloat(testoGrezzo.trim().replace(/[a-zA-Z€]/g, '').replace(/\./g, '').replace(',', '.'));
+                    addLog(`Prezzo convertito per calcolo: ${numeroPulito}`, 'warn');
+                    return numeroPulito;
+                } else {
+                    addLog(`ERRORE: Tag del prezzo NON TROVATO all'interno del codice HTML scaricato.`, 'error');
+                }
+            } catch (error) {
+                addLog(`ERRORE DI RETE JS: ${error.message} (Spesso causato da AdBlock, CORS o caduta di connessione)`, 'error');
+            }
+            return null;
+        }
+
+        async function avviaAggiornamentoDati() {
+            document.getElementById("statusMessage").innerText = "⏳ Contatto i server (aggiornamento in corso)...";
+            addLog(`=== AVVIO CICLO DI AGGIORNAMENTO GLOBALE ===`);
+            let richiesteCompletate = 0;
+
+            for (let i = 0; i < portafoglio.length; i++) {
+                // Pausa anti-spam
+                addLog(`Pausa di 2.5 secondi prima della prossima chiamata...`, 'info');
+                await new Promise(resolve => setTimeout(resolve, 2500));
+                
+                let fondo = portafoglio[i];
+                let newPrice = await fetchPrezzoDalSito(fondo.isin);
+                
+                if (newPrice !== null) {
+                    fondo.prezzoNav = newPrice;
+                    let now = new Date();
+                    fondo.lastUpdate = now.toLocaleDateString('it-IT') + ' ore: ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+                } else {
+                    fondo.lastUpdate = "Errore Rete";
+                    addLog(`Impostato stato "Errore Rete" per ISIN ${fondo.isin}`, 'error');
+                }
+                
+                salvaDatiNelBrowser();
+                renderTable();
+                
+                richiesteCompletate++;
+                if (richiesteCompletate === portafoglio.length) {
+                    document.getElementById("statusMessage").innerText = "Ciclo di aggiornamento terminato.";
+                    addLog(`=== CICLO DI AGGIORNAMENTO TERMINATO ===`);
+                    setTimeout(() => { document.getElementById("statusMessage").innerText = ""; }, 4000);
+                }
+            }
+        }
+
+        // ... (Cronologia intatta)
+        function salvaCronologia() {
+            const today = new Date().toLocaleDateString('it-IT');
+            const recordOdierno = { data: today, fondi: portafoglio.map(fondo => { const totale = fondo.qte * fondo.prezzoNav; const plusvalenza = totale - fondo.caricato; return { isin: fondo.isin, att: totale, car: fondo.caricato, fru: plusvalenza }; }) };
+            const indexGiaEsistente = historyData.findIndex(row => row.data === today);
+            if (indexGiaEsistente >= 0) { historyData[indexGiaEsistente] = recordOdierno; alert("Cronologia di oggi AGGIORNATA con successo!"); } 
+            else { historyData.unshift(recordOdierno); alert("Nuova cronologia SALVATA con successo!"); }
+            localStorage.setItem('portafoglioHistory', JSON.stringify(historyData)); renderHistory();
+        }
+
+        function renderHistory() {
+            const thead = document.querySelector("#historyTable thead"); const tbody = document.querySelector("#historyTable tbody");
+            let headerHTML = `<tr><th rowspan="2" style="width: 90px;">Data</th>`;
+            portafoglio.forEach(fondo => { headerHTML += `<th colspan="3">${fondo.nome} - ${fondo.isin}<span class="sub-header">Att | Car | Fru</span></th>`; });
+            headerHTML += `</tr>`; thead.innerHTML = headerHTML;
+            tbody.innerHTML = "";
+            historyData.forEach(row => {
+                const tr = document.createElement("tr"); let rowHTML = `<td class="text-center"><strong>${row.data}</strong></td>`;
+                portafoglio.forEach(fondo => {
+                    const storicoFondo = row.fondi.find(f => f.isin === fondo.isin) || { att: 0, car: 0, fru: 0 };
+                    const colorClass = storicoFondo.fru >= 0 ? 'text-positive' : 'text-negative';
+                    rowHTML += `<td>${formatEuro2(storicoFondo.att)}</td><td>${formatEuro2(storicoFondo.car)}</td><td class="${colorClass}">${formatEuro2(storicoFondo.fru)}</td>`;
+                });
+                tr.innerHTML = rowHTML; tbody.appendChild(tr);
+            });
+        }
+
+        function init() { renderTable(); renderHistory(); }
+        init();
+
+    </script>
+</body>
+</html>
