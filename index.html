@@ -56,27 +56,11 @@
         .btn-confirm { background-color: #0078D7; color: white; }
         
         #statusMessage { font-size: 0.85em; font-style: italic; color: #0078D7; margin-bottom: 20px; min-height: 20px; display: block; }
-
-        /* Stili per la console di DEBUG */
-        #debugConsole {
-            background-color: #1e1e1e;
-            color: #00ff00;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 12px;
-            padding: 10px;
-            height: 250px;
-            overflow-y: scroll;
-            border-radius: 5px;
-            margin-top: 40px;
-            border: 2px solid #555;
-        }
-        .log-error { color: #ff5555; font-weight: bold; }
-        .log-warn { color: #ffaa00; }
-        .log-info { color: #aaaaaa; }
     </style>
 </head>
 <body>
 
+    <!-- TABELLA PRINCIPALE -->
     <table class="main-table" id="portfolioTable">
         <thead>
             <tr class="header-top">
@@ -110,6 +94,7 @@
 
     <hr style="border: 1px solid #eee; margin: 20px 0;">
 
+    <!-- SEZIONE CRONOLOGIA -->
     <div class="history-container">
         <button class="btn btn-salva" onclick="salvaCronologia()">💾 Salva Cronologia Odierna</button>
         <table class="history-table" id="historyTable">
@@ -118,13 +103,7 @@
         </table>
     </div>
 
-    <!-- BOX DI LOG DEBUG -->
-    <div id="debugConsole">
-        <div>=== INIZIO LOG DI SISTEMA ===</div>
-        <div class="log-info">In attesa del comando di aggiornamento...</div>
-    </div>
-
-    <!-- MODALS -->
+    <!-- MODAL MODIFICA VALORI -->
     <div class="modal-overlay" id="editModalOverlay">
         <div class="modal">
             <h3 id="editTitle">Modifica Valori</h3>
@@ -139,6 +118,7 @@
         </div>
     </div>
 
+    <!-- MODAL AGGIUNGI TITOLO -->
     <div class="modal-overlay" id="addModalOverlay">
         <div class="modal">
             <h3>Aggiungi Nuovo Titolo</h3>
@@ -172,19 +152,6 @@
         function formatEuro3(val) { return '€ ' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3, useGrouping: true }); }
         function formatQte(val) { return Number(val).toLocaleString('it-IT', { maximumFractionDigits: 3, useGrouping: true }); }
 
-        // === FUNZIONE DI LOGGING ===
-        function addLog(msg, type = 'normal') {
-            const consoleDiv = document.getElementById('debugConsole');
-            const time = new Date().toLocaleTimeString('it-IT');
-            let colorClass = '';
-            if (type === 'error') colorClass = 'log-error';
-            else if (type === 'warn') colorClass = 'log-warn';
-            else if (type === 'info') colorClass = 'log-info';
-            
-            consoleDiv.innerHTML += `<div class="${colorClass}">[${time}] ${msg}</div>`;
-            consoleDiv.scrollTop = consoleDiv.scrollHeight; // Auto-scroll in basso
-        }
-
         function renderTable() {
             const tbody = document.querySelector("#portfolioTable tbody");
             tbody.innerHTML = "";
@@ -213,7 +180,6 @@
             });
         }
 
-        // ... (Funzioni CRUD Modals intatte)
         function apriModalModifica(index) {
             const fondo = portafoglio[index];
             document.getElementById('editTitle').innerText = fondo.nome + " - " + fondo.isin;
@@ -238,7 +204,6 @@
                 salvaDatiNelBrowser();
                 renderTable();
                 chiudiModal('editModalOverlay');
-                addLog(`Modifica manuale salvata per ${portafoglio[index].isin}`, 'warn');
             } else { alert("Inserisci valori numerici validi."); }
         }
 
@@ -262,68 +227,30 @@
         }
         function chiudiModal(id) { document.getElementById(id).style.display = 'none'; }
 
-
-        // ================= FUNZIONE DI RETE CON LOGGING =================
         async function fetchPrezzoDalSito(isin) {
             const urlSito = `https://www.fondionline.it/ricerca?isin=${isin}`;
             const proxyUrl = `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(urlSito)}`;
-            
-            addLog(`----------------------------------------`);
-            addLog(`Inizio procedura per ISIN: ${isin}`);
-            addLog(`Interrogo Proxy: ${proxyUrl}`, 'info');
-
             try {
-                addLog(`In attesa della risposta HTTP dal server...`);
                 const response = await fetch(proxyUrl);
-                
-                addLog(`Codice di stato HTTP ricevuto: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    addLog(`ERRORE: Il server proxy ha rifiutato la richiesta o è bloccato dal tuo browser. (Status: ${response.status})`, 'error');
-                    return null;
-                }
-                
-                addLog(`Download del codice HTML in corso...`);
+                if (!response.ok) return null;
                 const htmlStr = await response.text();
-                addLog(`HTML scaricato. Dimensione: ${htmlStr.length} caratteri.`);
-
-                // Controllo Anti-Bot / Cloudflare
-                if(htmlStr.toLowerCase().includes('cloudflare') || htmlStr.includes('Attention Required')) {
-                    addLog(`ATTENZIONE CRITICA: Rilevato blocco Cloudflare/Anti-bot. Il sito Fondionline sta bloccando il proxy.`, 'error');
-                }
-                if(htmlStr.includes('Nessun risultato') || htmlStr.length < 1000) {
-                    addLog(`ATTENZIONE: La pagina sembra vuota o l'ISIN non è stato trovato dal motore di ricerca del sito.`, 'warn');
-                }
-
-                addLog(`Analisi del DOM alla ricerca del tag td[data-label="Prezzo Ufficiale"]...`);
                 const doc = new DOMParser().parseFromString(htmlStr, 'text/html');
                 const prezzoElemento = doc.querySelector('td[data-label="Prezzo Ufficiale"]');
-                
                 if (prezzoElemento) {
-                    let testoGrezzo = prezzoElemento.innerText;
-                    addLog(`SUCCESSO! Elemento trovato. Testo grezzo: "${testoGrezzo.trim()}"`);
-                    let numeroPulito = parseFloat(testoGrezzo.trim().replace(/[a-zA-Z€]/g, '').replace(/\./g, '').replace(',', '.'));
-                    addLog(`Prezzo convertito per calcolo: ${numeroPulito}`, 'warn');
-                    return numeroPulito;
-                } else {
-                    addLog(`ERRORE: Tag del prezzo NON TROVATO all'interno del codice HTML scaricato.`, 'error');
+                    return parseFloat(prezzoElemento.innerText.trim().replace(/[a-zA-Z€]/g, '').replace(/\./g, '').replace(',', '.'));
                 }
             } catch (error) {
-                addLog(`ERRORE DI RETE JS: ${error.message} (Spesso causato da AdBlock, CORS o caduta di connessione)`, 'error');
+                console.error("Errore di Rete", error);
             }
             return null;
         }
 
         async function avviaAggiornamentoDati() {
-            document.getElementById("statusMessage").innerText = "⏳ Contatto i server (aggiornamento in corso)...";
-            addLog(`=== AVVIO CICLO DI AGGIORNAMENTO GLOBALE ===`);
+            document.getElementById("statusMessage").innerText = "⏳ Tentativo di aggiornamento in corso...";
             let richiesteCompletate = 0;
 
             for (let i = 0; i < portafoglio.length; i++) {
-                // Pausa anti-spam
-                addLog(`Pausa di 2.5 secondi prima della prossima chiamata...`, 'info');
                 await new Promise(resolve => setTimeout(resolve, 2500));
-                
                 let fondo = portafoglio[i];
                 let newPrice = await fetchPrezzoDalSito(fondo.isin);
                 
@@ -333,7 +260,6 @@
                     fondo.lastUpdate = now.toLocaleDateString('it-IT') + ' ore: ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
                 } else {
                     fondo.lastUpdate = "Errore Rete";
-                    addLog(`Impostato stato "Errore Rete" per ISIN ${fondo.isin}`, 'error');
                 }
                 
                 salvaDatiNelBrowser();
@@ -341,14 +267,12 @@
                 
                 richiesteCompletate++;
                 if (richiesteCompletate === portafoglio.length) {
-                    document.getElementById("statusMessage").innerText = "Ciclo di aggiornamento terminato.";
-                    addLog(`=== CICLO DI AGGIORNAMENTO TERMINATO ===`);
+                    document.getElementById("statusMessage").innerText = "Aggiornamento terminato.";
                     setTimeout(() => { document.getElementById("statusMessage").innerText = ""; }, 4000);
                 }
             }
         }
 
-        // ... (Cronologia intatta)
         function salvaCronologia() {
             const today = new Date().toLocaleDateString('it-IT');
             const recordOdierno = { data: today, fondi: portafoglio.map(fondo => { const totale = fondo.qte * fondo.prezzoNav; const plusvalenza = totale - fondo.caricato; return { isin: fondo.isin, att: totale, car: fondo.caricato, fru: plusvalenza }; }) };
