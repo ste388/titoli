@@ -30,8 +30,6 @@
         
         .btn-table-action { background-color: #28a745; padding: 4px 8px; font-size: 11px; margin-right: 4px; margin-bottom: 0; }
         .btn-table-action:hover { background-color: #218838; }
-        .btn-refresh { background-color: #17a2b8; }
-        .btn-refresh:hover { background-color: #138496; }
         
         .action-icon { cursor: pointer; font-size: 1.1em; text-decoration: none; }
         
@@ -55,7 +53,7 @@
         .btn-cancel { background-color: #ccc; color: #333; margin-right: 10px; }
         .btn-confirm { background-color: #0078D7; color: white; }
         
-        #statusMessage { font-size: 0.85em; font-style: italic; color: #0078D7; margin-bottom: 20px; min-height: 20px; display: block; }
+        #statusMessage { font-size: 0.85em; font-weight: bold; margin-bottom: 20px; min-height: 20px; display: block; }
     </style>
 </head>
 <body>
@@ -75,7 +73,9 @@
             <tr class="header-bottom">
                 <th style="text-align: left; white-space: nowrap;">
                     <button class="btn btn-table-action" onclick="apriModalAggiungi()">➕ Aggiungi</button>
-                    <button class="btn btn-table-action btn-refresh" onclick="avviaAggiornamentoDati()">🔄 Aggiorna</button>
+                    <button class="btn btn-table-action" style="background-color: #6f42c1;" onclick="document.getElementById('importaJson').click()">📂 Importa</button>
+					<button class="btn btn-table-action" style="background-color: #fd7e14;" onclick="esportaFileJson()">📥 Esporta</button>
+                    <input type="file" id="importaJson" style="display: none;" accept=".json" onchange="caricaFileJson(event)">
                 </th>
                 <th>caricato</th>
                 <th>qte possedute</th>
@@ -174,7 +174,7 @@
                     <td class="bg-yellow">${formatEuro3(fondo.prezzoNav)}</td>
                     <td class="bg-green">${formatEuro3(totale)}</td>
                     <td class="bg-green">${formatEuro2(plusvalenza)}</td>
-                    <td class="text-center" style="font-size: 0.8em; color: #555;">${fondo.lastUpdate || "-"}</td>
+                    <td class="text-center" style="font-size: 0.7em; color: #555; white-space: nowrap;">${fondo.lastUpdate || "-"}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -225,52 +225,40 @@
         function eliminaTitolo(index) {
             if (confirm("Sei sicuro di voler eliminare " + portafoglio[index].nome + "?")) { portafoglio.splice(index, 1); salvaDatiNelBrowser(); renderTable(); renderHistory(); }
         }
+        
         function chiudiModal(id) { document.getElementById(id).style.display = 'none'; }
 
-        async function fetchPrezzoDalSito(isin) {
-            const urlSito = `https://www.fondionline.it/ricerca?isin=${isin}`;
-            const proxyUrl = `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(urlSito)}`;
-            try {
-                const response = await fetch(proxyUrl);
-                if (!response.ok) return null;
-                const htmlStr = await response.text();
-                const doc = new DOMParser().parseFromString(htmlStr, 'text/html');
-                const prezzoElemento = doc.querySelector('td[data-label="Prezzo Ufficiale"]');
-                if (prezzoElemento) {
-                    return parseFloat(prezzoElemento.innerText.trim().replace(/[a-zA-Z€]/g, '').replace(/\./g, '').replace(',', '.'));
-                }
-            } catch (error) {
-                console.error("Errore di Rete", error);
-            }
-            return null;
-        }
+        // ================= FUNZIONE IMPORTA JSON LOCALE =================
+        function caricaFileJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-        async function avviaAggiornamentoDati() {
-            document.getElementById("statusMessage").innerText = "⏳ Tentativo di aggiornamento in corso...";
-            let richiesteCompletate = 0;
-
-            for (let i = 0; i < portafoglio.length; i++) {
-                await new Promise(resolve => setTimeout(resolve, 2500));
-                let fondo = portafoglio[i];
-                let newPrice = await fetchPrezzoDalSito(fondo.isin);
-                
-                if (newPrice !== null) {
-                    fondo.prezzoNav = newPrice;
-                    let now = new Date();
-                    fondo.lastUpdate = now.toLocaleDateString('it-IT') + ' ore: ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-                } else {
-                    fondo.lastUpdate = "Errore Rete";
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const datiCaricati = JSON.parse(e.target.result);
+                    
+                    if (Array.isArray(datiCaricati) && datiCaricati.length > 0 && datiCaricati[0].isin) {
+                        portafoglio = datiCaricati;
+                        salvaDatiNelBrowser();
+                        renderTable();
+                        
+                        document.getElementById("statusMessage").style.color = "green";
+                        document.getElementById("statusMessage").innerText = "✅ Prezzi aggiornati dal file JSON locale!";
+                        setTimeout(() => { document.getElementById("statusMessage").innerText = ""; }, 4000);
+                    } else {
+                        alert("Il file JSON non ha il formato corretto per questo portafoglio.");
+                    }
+                } catch (error) {
+                    alert("Errore nella lettura del file JSON. Assicurati che sia integro.");
+                    console.error(error);
                 }
                 
-                salvaDatiNelBrowser();
-                renderTable();
-                
-                richiesteCompletate++;
-                if (richiesteCompletate === portafoglio.length) {
-                    document.getElementById("statusMessage").innerText = "Aggiornamento terminato.";
-                    setTimeout(() => { document.getElementById("statusMessage").innerText = ""; }, 4000);
-                }
-            }
+                event.target.value = '';
+            };
+            
+            reader.readAsText(file);
         }
 
         function salvaCronologia() {
@@ -298,6 +286,21 @@
                 tr.innerHTML = rowHTML; tbody.appendChild(tr);
             });
         }
+
+
+// ================= FUNZIONE ESPORTA JSON =================
+function esportaFileJson() {
+    // Crea il file partendo dai dati in memoria
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(portafoglio, null, 4));
+    
+    // Crea un link invisibile per forzare il download
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "portafoglio_dati.json");
+    document.body.appendChild(downloadAnchorNode); // Richiesto per Firefox
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+}
 
         function init() { renderTable(); renderHistory(); }
         init();
