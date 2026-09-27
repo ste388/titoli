@@ -1,0 +1,42 @@
+[
+    {
+        "nome": "Energia",
+        "isin": "IT0001260618",
+        "caricato": 3216.5,
+        "qte": 181.334,
+        "prezzoNav": 22.13,
+        "lastUpdate": "27/09/2026 ore 10:21"
+    },
+    {
+        "nome": "Obb 3Y",
+        "isin": "IT0005579112",
+        "caricato": 9995,
+        "qte": 1987.472,
+        "prezzoNav": 5.12,
+        "lastUpdate": "27/09/2026 ore 10:21"
+    },
+    {
+        "nome": "Difesa 85",
+        "isin": "IT0005480287",
+        "caricato": 9757.21,
+        "qte": 1549.747,
+        "prezzoNav": 6.36,
+        "lastUpdate": "27/09/2026 ore 10:21"
+    },
+    {
+        "nome": "Eurizon 40",
+        "isin": "IT0001080388",
+        "caricato": 835.22,
+        "qte": 73.252,
+        "prezzoNav": 11.57,
+        "lastUpdate": "27/09/2026 ore 10:21"
+    },
+    {
+        "nome": "Escx 27",
+        "isin": "XS2469378264",
+        "caricato": 3467.64,
+        "qte": 3,
+        "prezzoNav": 1213.766346,
+        "lastUpdate": "27/09/2026 ore 10:21"
+    }
+]
