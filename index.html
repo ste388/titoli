@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portafoglio Fondi</title>
-	<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-	
     <style>
         body { font-family: Arial, sans-serif; margin: 15px; background-color: #f4f4f9; }
         table { border-collapse: collapse; width: 100%; margin: 0 auto; background-color: white; }
@@ -14,7 +11,6 @@
         .table-wrapper { width: 100%; overflow-x: auto; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         
         .main-table { min-width: 900px; }
-        /* Aggiunto white-space: nowrap per non mandare MAI a capo i contenuti delle celle */
         .main-table th, .main-table td { border: 1px solid #ddd; padding: 8px; text-align: right; font-size: 0.95em; white-space: nowrap; }
         .main-table thead th { text-align: center; vertical-align: middle; background-color: #e9ecef; }
         
@@ -36,13 +32,13 @@
         
         .btn-table-action { padding: 5px 10px; font-size: 12px; margin-right: 4px; margin-bottom: 0; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .btn-aggiungi { background-color: #28a745; } .btn-aggiungi:hover { background-color: #218838; }
+        .btn-importa { background-color: #6f42c1; } .btn-importa:hover { background-color: #5a329f; }
         .btn-esporta { background-color: #fd7e14; } .btn-esporta:hover { background-color: #e06c0b; }
         
         .action-icon { cursor: pointer; font-size: 1.2em; text-decoration: none; transition: transform 0.2s; }
         .action-icon:hover { transform: scale(1.2); }
         
         .history-table { font-size: 0.85em; min-width: 600px; }
-        /* Aggiunto white-space: nowrap per la tabella cronologia */
         .history-table th, .history-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: right; white-space: nowrap; }
         .history-table th { background-color: #e9ecef; text-align: center; vertical-align: middle; color: #333; }
         .history-table .sub-header { display: block; font-size: 0.85em; font-weight: normal; color: #666; margin-top: 4px; }
@@ -92,6 +88,10 @@
             .history-table th, .history-table td { padding: 5px; font-size: 0.8em; }
         }
     </style>
+    
+    <!-- Librerie Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 </head>
 <body>
 
@@ -117,6 +117,11 @@
                 <tr class="header-bottom">
                     <th style="text-align: left; white-space: nowrap;">
                         <button class="btn-table-action btn-aggiungi" onclick="apriModalAggiungi()">➕ Aggiungi</button>
+                        
+                        <!-- Tasto Importa Reinserito -->
+                        <button class="btn-table-action btn-importa" onclick="document.getElementById('importaJson').click()">📂 Importa</button>
+                        <input type="file" id="importaJson" style="display: none;" accept=".json" onchange="caricaFileJson(event)">
+                        
                         <button class="btn-table-action btn-esporta" onclick="esportaFileJson()">📥 Esporta</button>
                     </th>
                     <th>caricato</th>
@@ -172,14 +177,7 @@
     </div>
 
     <script>
-	
-	
-	// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
+        // ================= CONFIGURAZIONE FIRESTORE =================
 const firebaseConfig = {
   apiKey: "AIzaSyB2KwsQ3sYNgKeNJcX9zRWi6h5AKkOayvs",
   authDomain: "portafogliotitoli.firebaseapp.com",
@@ -188,10 +186,14 @@ const firebaseConfig = {
   messagingSenderId: "761903816795",
   appId: "1:761903816795:web:f406f2631ba7a49f1e9f7e"
 };
+        
+        // Inizializza Firebase e Firestore
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        // ============================================================
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-	
         const defaultPortafoglio = [
             { nome: "Energia", isin: "IT0001260618", caricato: 3216.50, qte: 181.334, prezzoNav: 22.130, lastUpdate: "-" },
             { nome: "Obb 3Y", isin: "IT0005579112", caricato: 9995.00, qte: 1987.472, prezzoNav: 5.123, lastUpdate: "-" },
@@ -201,11 +203,10 @@ const app = initializeApp(firebaseConfig);
         ];
 
         let portafoglio = JSON.parse(localStorage.getItem('portafoglioDati')) || defaultPortafoglio;
-        let historyData = JSON.parse(localStorage.getItem('portafoglioHistory')) || [];
+        let historyData = []; 
 
         function salvaDatiNelBrowser() { localStorage.setItem('portafoglioDati', JSON.stringify(portafoglio)); }
 
-        // Modifica cruciale: uso di \u00A0 (non-breaking space) invece dello spazio normale
         function formatEuro2(val) { return '€\u00A0' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }); }
         function formatEuro3(val) { return '€\u00A0' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3, useGrouping: true }); }
         function formatQte(val) { return Number(val).toLocaleString('it-IT', { maximumFractionDigits: 3, useGrouping: true }); }
@@ -300,6 +301,37 @@ const app = initializeApp(firebaseConfig);
         
         function chiudiModal(id) { document.getElementById(id).style.display = 'none'; }
 
+        // ================= FUNZIONE IMPORTA JSON =================
+        function caricaFileJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const datiCaricati = JSON.parse(e.target.result);
+                    
+                    if (Array.isArray(datiCaricati) && datiCaricati.length > 0 && datiCaricati[0].isin) {
+                        portafoglio = datiCaricati;
+                        salvaDatiNelBrowser();
+                        renderTable();
+                        
+                        document.getElementById("statusMessage").style.color = "#28a745";
+                        document.getElementById("statusMessage").innerText = "✅ Dati importati manualmente con successo!";
+                        setTimeout(() => { document.getElementById("statusMessage").innerText = ""; }, 4000);
+                    } else {
+                        alert("Il file JSON non ha il formato corretto per questo portafoglio.");
+                    }
+                } catch (error) {
+                    alert("Errore nella lettura del file JSON. Assicurati che sia integro.");
+                    console.error(error);
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
         function esportaFileJson() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(portafoglio, null, 4));
             const downloadAnchorNode = document.createElement('a');
@@ -310,7 +342,7 @@ const app = initializeApp(firebaseConfig);
             downloadAnchorNode.remove();
         }
 
-function salvaCronologia() {
+        function salvaCronologia() {
             const today = new Date().toLocaleDateString('it-IT');
             const recordOdierno = { data: today, fondi: portafoglio.map(fondo => { const totale = fondo.qte * fondo.prezzoNav; const plusvalenza = totale - fondo.caricato; return { isin: fondo.isin, att: totale, car: fondo.caricato, fru: plusvalenza }; }) };
             
@@ -323,7 +355,6 @@ function salvaCronologia() {
                 alert("Nuova cronologia SALVATA su Firestore!"); 
             }
             
-            // Scrittura su Firestore (Collezione: app_dati -> Documento: cronologia)
             db.collection("app_dati").doc("cronologia").set({
                 storico: historyData
             }).catch(error => {
@@ -352,7 +383,7 @@ function salvaCronologia() {
         }
 
         async function init() {
-            // 1. Ascoltatore in TEMPO REALE di Firestore (sostituisce on() con onSnapshot())
+            // Ascoltatore Firestore in tempo reale
             db.collection("app_dati").doc("cronologia").onSnapshot((doc) => {
                 if (doc.exists) {
                     historyData = doc.data().storico || [];
@@ -362,7 +393,7 @@ function salvaCronologia() {
                 }
             });
 
-            // 2. Continua a scaricare i prezzi correnti da GitHub (nessuna modifica qui)
+            // Scarica file correnti da GitHub (se disponibile)
             try {
                 const response = await fetch('portafoglio_dati.json?t=' + new Date().getTime());
                 if (response.ok) {
