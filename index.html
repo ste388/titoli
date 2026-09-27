@@ -222,7 +222,7 @@ const firebaseConfig = {
         auth.onAuthStateChanged((user) => {
             if (user) {
                 // Controllo di sicurezza lato interfaccia
-                if (user.email === 'ferraristefano100@gmail.com') {
+                if (user.email === 'ferrari.ste100@gmail.com') {
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContent').style.display = 'block';
                     avviaApp(); // Fa partire l'app solo se l'email è quella giusta
