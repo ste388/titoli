@@ -5,18 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portafoglio Fondi</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 15px; background-color: #f4f4f9; }
-        table { border-collapse: collapse; width: 100%; margin: 0 auto; background-color: white; }
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f9; }
         
+        /* SCHERMATA DI LOGIN */
+        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #f4f4f9; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
+        .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+        .btn-google { background-color: #4285F4; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px; margin: 0 auto; }
+        .btn-google:hover { background-color: #357ae8; }
+        
+        /* CONTENITORE PRINCIPALE (nascosto prima del login) */
+        #appContent { display: none; padding: 15px; }
+
+        table { border-collapse: collapse; width: 100%; margin: 0 auto; background-color: white; }
         .table-wrapper { width: 100%; overflow-x: auto; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         
         .main-table { min-width: 900px; }
         .main-table th, .main-table td { border: 1px solid #ddd; padding: 8px; text-align: right; font-size: 0.95em; white-space: nowrap; }
         .main-table thead th { text-align: center; vertical-align: middle; background-color: #e9ecef; }
-        
         .main-table .header-top th { font-weight: normal; font-style: italic; font-size: 0.75em; color: #555; line-height: 1.1; padding: 4px; }
         .main-table .header-bottom th { font-weight: bold; font-size: 0.9em; color: #333; }
-        
         .main-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
         .main-table tbody tr:hover { background-color: #f1f1f1; }
         
@@ -34,6 +41,7 @@
         .btn-aggiungi { background-color: #28a745; } .btn-aggiungi:hover { background-color: #218838; }
         .btn-importa { background-color: #6f42c1; } .btn-importa:hover { background-color: #5a329f; }
         .btn-esporta { background-color: #fd7e14; } .btn-esporta:hover { background-color: #e06c0b; }
+        .btn-logout { background-color: #dc3545; padding: 4px 8px; font-size: 11px; float: right; margin-bottom: 10px; }
         
         .action-icon { cursor: pointer; font-size: 1.2em; text-decoration: none; transition: transform 0.2s; }
         .action-icon:hover { transform: scale(1.2); }
@@ -46,24 +54,10 @@
         
         .text-center { text-align: center !important; }
         .text-left { text-align: left !important; }
-        
         .text-positive { color: #28a745; font-weight: bold; }
         .text-negative { color: #dc3545; font-weight: bold; }
 
-        .mobile-header {
-            display: none;
-            background-color: #0078D7;
-            color: white;
-            padding: 12px 15px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
+        .mobile-header { display: none; background-color: #0078D7; color: white; padding: 12px 15px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 4px; margin-bottom: 10px; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; }
         .modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 320px; }
@@ -75,77 +69,92 @@
         .btn-cancel { background-color: #ccc; color: #333; margin-right: 10px; }
         .btn-confirm { background-color: #0078D7; color: white; }
         
-        #statusMessage { font-size: 0.9em; font-weight: bold; display: block; margin-bottom: 15px; }
+        #statusMessage { font-size: 0.9em; font-weight: bold; display: inline-block; margin-bottom: 15px; }
 
         @media (max-width: 768px) {
-            body { margin: 10px; }
+            #appContent { padding: 10px; }
             .mobile-header { display: flex; } 
-            
             #portfolioWrapper { display: none; }
             #portfolioWrapper.show { display: block; } 
-            
             .main-table th, .main-table td { padding: 6px; font-size: 0.85em; }
             .history-table th, .history-table td { padding: 5px; font-size: 0.8em; }
         }
     </style>
     
-    <!-- Librerie Firestore -->
+    <!-- Librerie Firebase COMPLETE (App, Firestore, e ora Auth) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 </head>
 <body>
 
-    <span id="statusMessage"></span>
-
-    <div class="mobile-header" onclick="togglePortfolio()">
-        <span>📊 Titoli e fondi</span>
-        <span id="portfolioArrow">▼</span>
-    </div>
-
-    <div class="table-wrapper" id="portfolioWrapper">
-        <table class="main-table" id="portfolioTable">
-            <thead>
-                <tr class="header-top">
-                    <th style="width: 260px;"></th>
-                    <th>Di solito non cambia a meno che sia azionario</th>
-                    <th>Di solito non cambia a meno che sia azionario</th>
-                    <th>deve auto aggiornarsi<br>(prezzo di mercato)</th>
-                    <th>qte possedute * valore 1 quota</th>
-                    <th>Valore che possiedo<br>caricato - totale</th>
-                    <th></th>
-                </tr>
-                <tr class="header-bottom">
-                    <th style="text-align: left; white-space: nowrap;">
-                        <button class="btn-table-action btn-aggiungi" onclick="apriModalAggiungi()">➕ Aggiungi</button>
-                        
-                        <button class="btn-table-action btn-importa" onclick="document.getElementById('importaJson').click()">📂 Importa</button>
-                        <input type="file" id="importaJson" style="display: none;" accept=".json" onchange="caricaFileJson(event)">
-                        
-                        <button class="btn-table-action btn-esporta" onclick="esportaFileJson()">📥 Esporta</button>
-                    </th>
-                    <th>caricato</th>
-                    <th>qte possedute</th>
-                    <th>valore 1 quota</th>
-                    <th>totale</th>
-                    <th></th>
-                    <th>aggiornato al</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="history-container">
-        <button class="btn btn-salva" onclick="salvaCronologia()">💾 Salva Cronologia Odierna</button>
-        <div class="table-wrapper" style="box-shadow: none; margin-bottom: 0;">
-            <table class="history-table" id="historyTable">
-                <thead></thead>
-                <tbody></tbody>
-            </table>
+    <!-- SCHERMATA DI LOGIN -->
+    <div id="loginScreen">
+        <div class="login-box">
+            <h2>Area Riservata</h2>
+            <p style="color: #666; margin-bottom: 25px;">Effettua l'accesso per sbloccare il portafoglio.</p>
+            <button class="btn-google" onclick="accediConGoogle()">
+                <span>🔒 Accedi con Google</span>
+            </button>
         </div>
     </div>
 
+    <!-- CONTENITORE APP PRINCIPALE -->
+    <div id="appContent">
+        <div>
+            <span id="statusMessage"></span>
+            <button class="btn btn-logout" onclick="esciDalProfilo()">Esci</button>
+        </div>
+
+        <div class="mobile-header" onclick="togglePortfolio()">
+            <span>📊 Titoli e fondi</span>
+            <span id="portfolioArrow">▼</span>
+        </div>
+
+        <div class="table-wrapper" id="portfolioWrapper">
+            <table class="main-table" id="portfolioTable">
+                <thead>
+                    <tr class="header-top">
+                        <th style="width: 260px;"></th>
+                        <th>Di solito non cambia a meno che sia azionario</th>
+                        <th>Di solito non cambia a meno che sia azionario</th>
+                        <th>deve auto aggiornarsi<br>(prezzo di mercato)</th>
+                        <th>qte possedute * valore 1 quota</th>
+                        <th>Valore che possiedo<br>caricato - totale</th>
+                        <th></th>
+                    </tr>
+                    <tr class="header-bottom">
+                        <th style="text-align: left; white-space: nowrap;">
+                            <button class="btn-table-action btn-aggiungi" onclick="apriModalAggiungi()">➕ Aggiungi</button>
+                            <button class="btn-table-action btn-importa" onclick="document.getElementById('importaJson').click()">📂 Importa</button>
+                            <input type="file" id="importaJson" style="display: none;" accept=".json" onchange="caricaFileJson(event)">
+                            <button class="btn-table-action btn-esporta" onclick="esportaFileJson()">📥 Esporta</button>
+                        </th>
+                        <th>caricato</th>
+                        <th>qte possedute</th>
+                        <th>valore 1 quota</th>
+                        <th>totale</th>
+                        <th></th>
+                        <th>aggiornato al</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="history-container">
+            <button class="btn btn-salva" onclick="salvaCronologia()">💾 Salva Cronologia Odierna</button>
+            <div class="table-wrapper" style="box-shadow: none; margin-bottom: 0;">
+                <table class="history-table" id="historyTable">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL MODIFICA -->
     <div class="modal-overlay" id="editModalOverlay">
         <div class="modal">
             <h3 id="editTitle">Modifica Valori</h3>
@@ -160,6 +169,7 @@
         </div>
     </div>
 
+    <!-- MODAL AGGIUNGI -->
     <div class="modal-overlay" id="addModalOverlay">
         <div class="modal">
             <h3>Aggiungi Nuovo Titolo</h3>
@@ -190,6 +200,11 @@ const firebaseConfig = {
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.firestore();
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        
+        // VARIABILE PER FERMARE I LISTENER QUANDO SI ESCE
+        let unsubscribeFirestore = null;
         // ============================================================
 
         const defaultPortafoglio = [
@@ -203,8 +218,38 @@ const firebaseConfig = {
         let portafoglio = JSON.parse(localStorage.getItem('portafoglioDati')) || defaultPortafoglio;
         let historyData = []; 
 
-        function salvaDatiNelBrowser() { localStorage.setItem('portafoglioDati', JSON.stringify(portafoglio)); }
+        // ================= GESTIONE LOGIN =================
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // Controllo di sicurezza lato interfaccia
+                if (user.email === 'ferraristefano100@gmail.com') {
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContent').style.display = 'block';
+                    avviaApp(); // Fa partire l'app solo se l'email è quella giusta
+                } else {
+                    alert("Accesso negato. Utente non autorizzato.");
+                    esciDalProfilo();
+                }
+            } else {
+                // Se non c'è login, nasconde l'app
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('appContent').style.display = 'none';
+                if(unsubscribeFirestore) unsubscribeFirestore(); // Ferma il download dei dati
+            }
+        });
 
+        function accediConGoogle() {
+            auth.signInWithPopup(provider).catch((error) => {
+                alert("Errore durante il login: " + error.message);
+            });
+        }
+
+        function esciDalProfilo() {
+            auth.signOut();
+        }
+        // ===================================================
+
+        function salvaDatiNelBrowser() { localStorage.setItem('portafoglioDati', JSON.stringify(portafoglio)); }
         function formatEuro2(val) { return '€\u00A0' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }); }
         function formatEuro3(val) { return '€\u00A0' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3, useGrouping: true }); }
         function formatQte(val) { return Number(val).toLocaleString('it-IT', { maximumFractionDigits: 3, useGrouping: true }); }
@@ -213,11 +258,7 @@ const firebaseConfig = {
             const wrapper = document.getElementById("portfolioWrapper");
             const arrow = document.getElementById("portfolioArrow");
             wrapper.classList.toggle("show");
-            if (wrapper.classList.contains("show")) {
-                arrow.innerText = "▲";
-            } else {
-                arrow.innerText = "▼";
-            }
+            if (wrapper.classList.contains("show")) { arrow.innerText = "▲"; } else { arrow.innerText = "▼"; }
         }
 
         function renderTable() {
@@ -226,9 +267,7 @@ const firebaseConfig = {
             portafoglio.forEach((fondo, index) => {
                 const totale = fondo.qte * fondo.prezzoNav;
                 const plusvalenza = totale - fondo.caricato; 
-                
                 const colorePlusvalenza = plusvalenza >= 0 ? 'text-positive' : 'text-negative';
-
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td class="text-left">
@@ -302,7 +341,6 @@ const firebaseConfig = {
         function caricaFileJson(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -314,13 +352,8 @@ const firebaseConfig = {
                         document.getElementById("statusMessage").style.color = "#28a745";
                         document.getElementById("statusMessage").innerText = "✅ Dati importati manualmente con successo!";
                         setTimeout(() => { document.getElementById("statusMessage").innerText = ""; }, 4000);
-                    } else {
-                        alert("Il file JSON non ha il formato corretto per questo portafoglio.");
-                    }
-                } catch (error) {
-                    alert("Errore nella lettura del file JSON. Assicurati che sia integro.");
-                    console.error(error);
-                }
+                    } else { alert("Il file JSON non ha il formato corretto per questo portafoglio."); }
+                } catch (error) { alert("Errore nella lettura del file JSON. Assicurati che sia integro."); console.error(error); }
                 event.target.value = '';
             };
             reader.readAsText(file);
@@ -353,7 +386,7 @@ const firebaseConfig = {
                 storico: historyData
             }).catch(error => {
                 console.error("Errore salvataggio su Firestore: ", error);
-                alert("Errore di connessione a Firestore.");
+                alert("Errore di connessione a Firestore. Assicurati di essere loggato.");
             });
         }
 
@@ -367,11 +400,9 @@ const firebaseConfig = {
                 return; 
             }
             
-            // Creazione testata con il blocco Totale
             let headerHTML = `<tr>
                 <th rowspan="2" style="width: 90px; vertical-align: middle;">Data</th>
                 <th colspan="2" style="background-color: #d1ecf1; border-right: 2px solid #ccc;">Totale<span class="sub-header">Att | Fru</span></th>`;
-            
             portafoglio.forEach(fondo => { 
                 headerHTML += `<th colspan="3">${fondo.nome} - ${fondo.isin}<span class="sub-header">Att | Car | Fru</span></th>`; 
             });
@@ -381,26 +412,19 @@ const firebaseConfig = {
             tbody.innerHTML = "";
             historyData.forEach(row => {
                 const tr = document.createElement("tr"); 
-                
-                // Variabili per sommare i totali dell'intera riga (giorno)
-                let totAtt = 0;
-                let totFru = 0;
+                let totAtt = 0; let totFru = 0;
                 
                 if(row.fondi) {
                     row.fondi.forEach(f => {
-                        totAtt += (f.att || 0);
-                        totFru += (f.fru || 0);
+                        totAtt += (f.att || 0); totFru += (f.fru || 0);
                     });
                 }
                 
                 const colorTotFru = totFru >= 0 ? 'text-positive' : 'text-negative';
-                
-                // Stampa della data e delle colonne Totale con sfondo leggermente azzurro
                 let rowHTML = `<td class="text-center"><strong>${row.data}</strong></td>
                                <td style="background-color: #f4f8fb;"><strong>${formatEuro2(totAtt)}</strong></td>
                                <td class="${colorTotFru}" style="background-color: #f4f8fb; border-right: 2px solid #ccc;"><strong>${formatEuro2(totFru)}</strong></td>`;
                 
-                // Stampa di tutti gli altri fondi
                 portafoglio.forEach(fondo => {
                     const storicoFondo = row.fondi.find(f => f.isin === fondo.isin) || { att: 0, car: 0, fru: 0 };
                     const colorClass = storicoFondo.fru >= 0 ? 'text-positive' : 'text-negative';
@@ -408,14 +432,13 @@ const firebaseConfig = {
                                 <td>${formatEuro2(storicoFondo.car)}</td>
                                 <td class="${colorClass}">${formatEuro2(storicoFondo.fru)}</td>`;
                 });
-                tr.innerHTML = rowHTML; 
-                tbody.appendChild(tr);
+                tr.innerHTML = rowHTML; tbody.appendChild(tr);
             });
         }
 
-        async function init() {
-            // Ascoltatore Firestore in tempo reale
-            db.collection("app_dati").doc("cronologia").onSnapshot((doc) => {
+        async function avviaApp() {
+            // Inizia ad ascoltare Firestore solo dopo il login
+            unsubscribeFirestore = db.collection("app_dati").doc("cronologia").onSnapshot((doc) => {
                 if (doc.exists) {
                     historyData = doc.data().storico || [];
                     renderHistory();
@@ -424,7 +447,7 @@ const firebaseConfig = {
                 }
             });
 
-            // Scarica file correnti da GitHub (se disponibile)
+            // Scarica i prezzi da GitHub
             try {
                 const response = await fetch('portafoglio_dati.json?t=' + new Date().getTime());
                 if (response.ok) {
@@ -432,7 +455,6 @@ const firebaseConfig = {
                     if (Array.isArray(datiCloud) && datiCloud.length > 0 && datiCloud[0].isin) {
                         portafoglio = datiCloud;
                         salvaDatiNelBrowser(); 
-                        
                         document.getElementById("statusMessage").style.color = "#28a745";
                         document.getElementById("statusMessage").innerText = "☁️ Dati e cronologia sincronizzati dal cloud!";
                         setTimeout(() => { document.getElementById("statusMessage").innerText = ""; }, 4000);
@@ -443,8 +465,6 @@ const firebaseConfig = {
             }
             renderTable();
         }
-        
-        init();
 
     </script>
 </body>
