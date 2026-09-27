@@ -7,11 +7,13 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f9; }
         
-        /* SCHERMATA DI LOGIN */
+        /* SCHERMATA DI LOGIN CON EMAIL E PASSWORD */
         #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #f4f4f9; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
-        .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
-        .btn-google { background-color: #4285F4; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px; margin: 0 auto; }
-        .btn-google:hover { background-color: #357ae8; }
+        .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 300px; }
+        .login-box h2 { margin-top: 0; color: #333; }
+        .login-input { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        .btn-login { background-color: #0078D7; color: white; padding: 10px; width: 100%; font-size: 15px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .btn-login:hover { background-color: #005a9e; }
         
         /* CONTENITORE PRINCIPALE (nascosto prima del login) */
         #appContent { display: none; padding: 15px; }
@@ -81,21 +83,20 @@
         }
     </style>
     
-    <!-- Librerie Firebase COMPLETE (App, Firestore, e ora Auth) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 </head>
 <body>
 
-    <!-- SCHERMATA DI LOGIN -->
+    <!-- SCHERMATA DI LOGIN CON EMAIL E PASSWORD -->
     <div id="loginScreen">
         <div class="login-box">
             <h2>Area Riservata</h2>
-            <p style="color: #666; margin-bottom: 25px;">Effettua l'accesso per sbloccare il portafoglio.</p>
-            <button class="btn-google" onclick="accediConGoogle()">
-                <span>🔒 Accedi con Google</span>
-            </button>
+            <p style="color: #666; margin-bottom: 20px; font-size: 13px;">Inserisci le tue credenziali.</p>
+            <input type="email" id="loginEmail" class="login-input" placeholder="La tua email">
+            <input type="password" id="loginPassword" class="login-input" placeholder="Password" onkeydown="if(event.key === 'Enter') accediConEmailPassword()">
+            <button class="btn-login" onclick="accediConEmailPassword()">Accedi</button>
         </div>
     </div>
 
@@ -114,7 +115,16 @@
         <div class="table-wrapper" id="portfolioWrapper">
             <table class="main-table" id="portfolioTable">
                 <thead>
-                        <tr class="header-bottom">
+                    <tr class="header-top">
+                        <th style="width: 260px;"></th>
+                        <th>Di solito non cambia a meno che sia azionario</th>
+                        <th>Di solito non cambia a meno che sia azionario</th>
+                        <th>deve auto aggiornarsi<br>(prezzo di mercato)</th>
+                        <th>qte possedute * valore 1 quota</th>
+                        <th>Valore che possiedo<br>caricato - totale</th>
+                        <th></th>
+                    </tr>
+                    <tr class="header-bottom">
                         <th style="text-align: left; white-space: nowrap;">
                             <button class="btn-table-action btn-aggiungi" onclick="apriModalAggiungi()">➕ Aggiungi</button>
                             <button class="btn-table-action btn-importa" onclick="document.getElementById('importaJson').click()">📂 Importa</button>
@@ -122,8 +132,8 @@
                             <button class="btn-table-action btn-esporta" onclick="esportaFileJson()">📥 Esporta</button>
                         </th>
                         <th>caricato</th>
-                        <th>qte</th>
-                        <th>valore</th>
+                        <th>qte possedute</th>
+                        <th>valore 1 quota</th>
                         <th>totale</th>
                         <th></th>
                         <th>aggiornato al</th>
@@ -145,7 +155,6 @@
         </div>
     </div>
 
-    <!-- MODAL MODIFICA -->
     <div class="modal-overlay" id="editModalOverlay">
         <div class="modal">
             <h3 id="editTitle">Modifica Valori</h3>
@@ -160,7 +169,6 @@
         </div>
     </div>
 
-    <!-- MODAL AGGIUNGI -->
     <div class="modal-overlay" id="addModalOverlay">
         <div class="modal">
             <h3>Aggiungi Nuovo Titolo</h3>
@@ -177,7 +185,6 @@
     </div>
 
     <script>
-        // ================= CONFIGURAZIONE FIRESTORE =================
 const firebaseConfig = {
   apiKey: "AIzaSyB2KwsQ3sYNgKeNJcX9zRWi6h5AKkOayvs",
   authDomain: "portafogliotitoli.firebaseapp.com",
@@ -192,11 +199,8 @@ const firebaseConfig = {
         }
         const db = firebase.firestore();
         const auth = firebase.auth();
-        const provider = new firebase.auth.GoogleAuthProvider();
         
-        // VARIABILE PER FERMARE I LISTENER QUANDO SI ESCE
         let unsubscribeFirestore = null;
-        // ============================================================
 
         const defaultPortafoglio = [
             { nome: "Energia", isin: "IT0001260618", caricato: 3216.50, qte: 181.334, prezzoNav: 22.130, lastUpdate: "-" },
@@ -209,36 +213,41 @@ const firebaseConfig = {
         let portafoglio = JSON.parse(localStorage.getItem('portafoglioDati')) || defaultPortafoglio;
         let historyData = []; 
 
-        // ================= GESTIONE LOGIN =================
         auth.onAuthStateChanged((user) => {
             if (user) {
-                // Controllo di sicurezza lato interfaccia
                 if (user.email === 'ferrari.ste100@gmail.com') {
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContent').style.display = 'block';
-                    avviaApp(); // Fa partire l'app solo se l'email è quella giusta
+                    avviaApp(); 
                 } else {
-                    alert("Accesso negato. Utente non autorizzato.");
+                    alert("Accesso negato. L'account " + user.email + " non è autorizzato.");
                     esciDalProfilo();
                 }
             } else {
-                // Se non c'è login, nasconde l'app
                 document.getElementById('loginScreen').style.display = 'flex';
                 document.getElementById('appContent').style.display = 'none';
-                if(unsubscribeFirestore) unsubscribeFirestore(); // Ferma il download dei dati
+                if(unsubscribeFirestore) unsubscribeFirestore(); 
             }
         });
 
-        function accediConGoogle() {
-            auth.signInWithPopup(provider).catch((error) => {
-                alert("Errore durante il login: " + error.message);
-            });
+        function accediConEmailPassword() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            if (!email || !password) {
+                alert("Inserisci sia l'email che la password.");
+                return;
+            }
+
+            auth.signInWithEmailAndPassword(email, password)
+                .catch((error) => {
+                    alert("Errore durante il login: " + error.message);
+                });
         }
 
         function esciDalProfilo() {
             auth.signOut();
         }
-        // ===================================================
 
         function salvaDatiNelBrowser() { localStorage.setItem('portafoglioDati', JSON.stringify(portafoglio)); }
         function formatEuro2(val) { return '€\u00A0' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }); }
@@ -417,7 +426,7 @@ const firebaseConfig = {
                                <td class="${colorTotFru}" style="background-color: #f4f8fb; border-right: 2px solid #ccc;"><strong>${formatEuro2(totFru)}</strong></td>`;
                 
                 portafoglio.forEach(fondo => {
-                    const storicoFondo = row.fondi.find(f => f.isin === fondo.isin) || { att: 0, car: 0, fru: 0 };
+                    const storicoFondo = row.fondi.fin(f => f.isin === fondo.isin) || { att: 0, car: 0, fru: 0 };
                     const colorClass = storicoFondo.fru >= 0 ? 'text-positive' : 'text-negative';
                     rowHTML += `<td>${formatEuro2(storicoFondo.att)}</td>
                                 <td>${formatEuro2(storicoFondo.car)}</td>
@@ -428,17 +437,15 @@ const firebaseConfig = {
         }
 
         async function avviaApp() {
-            // Inizia ad ascoltare Firestore solo dopo il login
             unsubscribeFirestore = db.collection("app_dati").doc("cronologia").onSnapshot((doc) => {
                 if (doc.exists) {
                     historyData = doc.data().storico || [];
                     renderHistory();
                 } else {
-                    console.log("Il documento cronologia non esiste ancora.");
+                    console.log("Nessun documento cronologia non esiste ancora.");
                 }
             });
 
-            // Scarica i prezzi da GitHub
             try {
                 const response = await fetch('portafoglio_dati.json?t=' + new Date().getTime());
                 if (response.ok) {
