@@ -302,7 +302,28 @@
             });
         }
 
-        function init() { renderTable(); renderHistory(); }
+async function init() {
+            try {
+                // Aggiunge un timestamp per costringere il cellulare a non usare la cache vecchia
+                const response = await fetch('portafoglio_dati.json?t=' + new Date().getTime());
+                if (response.ok) {
+                    const datiCloud = await response.json();
+                    if (Array.isArray(datiCloud) && datiCloud.length > 0 && datiCloud[0].isin) {
+                        portafoglio = datiCloud;
+                        salvaDatiNelBrowser(); // Aggiorna la memoria interna
+                        
+                        document.getElementById("statusMessage").style.color = "green";
+                        document.getElementById("statusMessage").innerText = "☁️ Dati sincronizzati in automatico dal cloud!";
+                        setTimeout(() => { document.getElementById("statusMessage").innerText = ""; }, 4000);
+                    }
+                }
+            } catch (error) {
+                console.log("Nessun aggiornamento cloud trovato, uso i dati salvati in memoria.");
+            }
+            renderTable();
+            renderHistory();
+        }
+        
         init();
 
     </script>
