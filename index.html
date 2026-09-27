@@ -11,17 +11,17 @@
         .table-wrapper { width: 100%; overflow-x: auto; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         
         .main-table { min-width: 900px; }
-        .main-table th, .main-table td { border: 1px solid #ddd; padding: 8px; text-align: right; font-size: 0.95em; }
+        /* Aggiunto white-space: nowrap per non mandare MAI a capo i contenuti delle celle */
+        .main-table th, .main-table td { border: 1px solid #ddd; padding: 8px; text-align: right; font-size: 0.95em; white-space: nowrap; }
         .main-table thead th { text-align: center; vertical-align: middle; background-color: #e9ecef; }
         
         .main-table .header-top th { font-weight: normal; font-style: italic; font-size: 0.75em; color: #555; line-height: 1.1; padding: 4px; }
         .main-table .header-bottom th { font-weight: bold; font-size: 0.9em; color: #333; }
         
-        /* Righe alternate grigio/bianco (effetto zebra) */
         .main-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
         .main-table tbody tr:hover { background-color: #f1f1f1; }
         
-        .col-nome-container { display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; white-space: nowrap; }
+        .col-nome-container { display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; }
         .col-nome-testo { overflow: hidden; text-overflow: ellipsis; margin-right: 15px; color: #0056b3; }
         .col-azioni { display: flex; gap: 6px; flex-shrink: 0; }
 
@@ -39,7 +39,8 @@
         .action-icon:hover { transform: scale(1.2); }
         
         .history-table { font-size: 0.85em; min-width: 600px; }
-        .history-table th, .history-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: right; }
+        /* Aggiunto white-space: nowrap per la tabella cronologia */
+        .history-table th, .history-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: right; white-space: nowrap; }
         .history-table th { background-color: #e9ecef; text-align: center; vertical-align: middle; color: #333; }
         .history-table .sub-header { display: block; font-size: 0.85em; font-weight: normal; color: #666; margin-top: 4px; }
         .history-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
@@ -47,11 +48,9 @@
         .text-center { text-align: center !important; }
         .text-left { text-align: left !important; }
         
-        /* Colori per i valori positivi e negativi */
         .text-positive { color: #28a745; font-weight: bold; }
         .text-negative { color: #dc3545; font-weight: bold; }
 
-        /* MENU A SCOMPARSA (MOBILE HEADER) */
         .mobile-header {
             display: none;
             background-color: #0078D7;
@@ -67,7 +66,6 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        /* MODALI */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; }
         .modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 320px; }
         .modal h3 { margin-top: 0; color: #333; font-size: 18px; }
@@ -80,14 +78,12 @@
         
         #statusMessage { font-size: 0.9em; font-weight: bold; display: block; margin-bottom: 15px; }
 
-        /* RESPONSIVE (Smartphone) */
         @media (max-width: 768px) {
             body { margin: 10px; }
-            .mobile-header { display: flex; } /* Mostra il bottone "Titoli e fondi" */
+            .mobile-header { display: flex; } 
             
-            /* Nasconde la tabella principale di default su mobile */
             #portfolioWrapper { display: none; }
-            #portfolioWrapper.show { display: block; } /* Classe aggiunta da JS per mostrare */
+            #portfolioWrapper.show { display: block; } 
             
             .main-table th, .main-table td { padding: 6px; font-size: 0.85em; }
             .history-table th, .history-table td { padding: 5px; font-size: 0.8em; }
@@ -98,13 +94,11 @@
 
     <span id="statusMessage"></span>
 
-    <!-- INTESTAZIONE A SCOMPARSA (Visibile solo su cellulare) -->
     <div class="mobile-header" onclick="togglePortfolio()">
         <span>📊 Titoli e fondi</span>
         <span id="portfolioArrow">▼</span>
     </div>
 
-    <!-- TABELLA PRINCIPALE -->
     <div class="table-wrapper" id="portfolioWrapper">
         <table class="main-table" id="portfolioTable">
             <thead>
@@ -131,12 +125,10 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- Generato da JS -->
             </tbody>
         </table>
     </div>
 
-    <!-- SEZIONE CRONOLOGIA -->
     <div class="history-container">
         <button class="btn btn-salva" onclick="salvaCronologia()">💾 Salva Cronologia Odierna</button>
         <div class="table-wrapper" style="box-shadow: none; margin-bottom: 0;">
@@ -147,7 +139,6 @@
         </div>
     </div>
 
-    <!-- MODAL MODIFICA VALORI -->
     <div class="modal-overlay" id="editModalOverlay">
         <div class="modal">
             <h3 id="editTitle">Modifica Valori</h3>
@@ -162,7 +153,6 @@
         </div>
     </div>
 
-    <!-- MODAL AGGIUNGI TITOLO -->
     <div class="modal-overlay" id="addModalOverlay">
         <div class="modal">
             <h3>Aggiungi Nuovo Titolo</h3>
@@ -192,11 +182,11 @@
 
         function salvaDatiNelBrowser() { localStorage.setItem('portafoglioDati', JSON.stringify(portafoglio)); }
 
-        function formatEuro2(val) { return '€ ' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }); }
-        function formatEuro3(val) { return '€ ' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3, useGrouping: true }); }
+        // Modifica cruciale: uso di \u00A0 (non-breaking space) invece dello spazio normale
+        function formatEuro2(val) { return '€\u00A0' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }); }
+        function formatEuro3(val) { return '€\u00A0' + Number(val).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3, useGrouping: true }); }
         function formatQte(val) { return Number(val).toLocaleString('it-IT', { maximumFractionDigits: 3, useGrouping: true }); }
 
-        // Funzione per il bottone del cellulare
         function togglePortfolio() {
             const wrapper = document.getElementById("portfolioWrapper");
             const arrow = document.getElementById("portfolioArrow");
@@ -215,7 +205,6 @@
                 const totale = fondo.qte * fondo.prezzoNav;
                 const plusvalenza = totale - fondo.caricato; 
                 
-                // Determina il colore del guadagno/perdita
                 const colorePlusvalenza = plusvalenza >= 0 ? 'text-positive' : 'text-negative';
 
                 const tr = document.createElement("tr");
@@ -234,7 +223,7 @@
                     <td>${formatEuro3(fondo.prezzoNav)}</td>
                     <td><strong>${formatEuro3(totale)}</strong></td>
                     <td class="${colorePlusvalenza}">${formatEuro2(plusvalenza)}</td>
-                    <td class="text-center" style="font-size: 0.7em; color: #555; white-space: nowrap;">${fondo.lastUpdate || "-"}</td>
+                    <td class="text-center" style="font-size: 0.7em; color: #555;">${fondo.lastUpdate || "-"}</td>
                 `;
                 tbody.appendChild(tr);
             });
