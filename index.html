@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portafoglio Fondi</title>
+    
+    <!-- === COLLEGAMENTI PWA === -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d47a1"> <!-- Aggiornato per combaciare con il manifest -->
+    <link rel="apple-touch-icon" href="icons/192.png">
+    
     <style>
         body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f9; }
         
@@ -21,9 +27,8 @@
         
         .main-table { min-width: 900px; }
         .main-table th, .main-table td { border: 1px solid #ddd; padding: 8px; text-align: right; font-size: 0.95em; white-space: nowrap; }
-        .main-table thead th { text-align: center; vertical-align: middle; background-color: #e9ecef; }
-        .main-table .header-top th { font-weight: normal; font-style: italic; font-size: 0.75em; color: #555; line-height: 1.1; padding: 4px; }
-        .main-table .header-bottom th { font-weight: bold; font-size: 0.9em; color: #333; }
+        .main-table thead th { text-align: center; vertical-align: middle; background-color: #e9ecef; font-weight: bold; font-size: 0.9em; color: #333; }
+        
         .main-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
         .main-table tbody tr:hover { background-color: #f1f1f1; }
         
@@ -111,8 +116,8 @@
         <div class="table-wrapper" id="portfolioWrapper">
             <table class="main-table" id="portfolioTable">
                 <thead>
-                    <tr class="header-bottom">
-                        <th style="text-align: left; white-space: nowrap;">
+                    <tr>
+                        <th style="text-align: left; white-space: nowrap; width: 260px;">
                             <button class="btn-table-action btn-aggiungi" onclick="apriModalAggiungi()">➕ Aggiungi</button>
                             <button class="btn-table-action btn-importa" onclick="document.getElementById('importaJson').click()">📂 Importa</button>
                             <input type="file" id="importaJson" style="display: none;" accept=".json" onchange="caricaFileJson(event)">
@@ -172,14 +177,15 @@
     </div>
 
     <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyB2KwsQ3sYNgKeNJcX9zRWi6h5AKkOayvs",
-  authDomain: "portafogliotitoli.firebaseapp.com",
-  projectId: "portafogliotitoli",
-  storageBucket: "portafogliotitoli.firebasestorage.app",
-  messagingSenderId: "761903816795",
-  appId: "1:761903816795:web:f406f2631ba7a49f1e9f7e"
-};
+        // CONFIGURAZIONE FIRESTORE FORNITA DA TE
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2KwsQ3sYNgKeNJcX9zRWi6h5AKkOayvs",
+            authDomain: "portafogliotitoli.firebaseapp.com",
+            projectId: "portafogliotitoli",
+            storageBucket: "portafogliotitoli.firebasestorage.app",
+            messagingSenderId: "761903816795",
+            appId: "1:761903816795:web:f406f2631ba7a49f1e9f7e"
+        };
         
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
@@ -413,7 +419,6 @@ const firebaseConfig = {
                                <td class="${colorTotFru}" style="background-color: #f4f8fb; border-right: 2px solid #ccc;"><strong>${formatEuro2(totFru)}</strong></td>`;
                 
                 portafoglio.forEach(fondo => {
-                    // Corretto da .fin a .find
                     const storicoFondo = row.fondi.find(f => f.isin === fondo.isin) || { att: 0, car: 0, fru: 0 };
                     const colorClass = storicoFondo.fru >= 0 ? 'text-positive' : 'text-negative';
                     rowHTML += `<td>${formatEuro2(storicoFondo.att)}</td>
@@ -452,6 +457,20 @@ const firebaseConfig = {
             renderTable();
         }
 
+        // ==========================================
+        // REGISTRAZIONE DEL SERVICE WORKER (PER PWA)
+        // ==========================================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registrato con successo!');
+                })
+                .catch(error => {
+                    console.error('Registrazione del Service Worker fallita:', error);
+                });
+            });
+        }
     </script>
 </body>
 </html>
