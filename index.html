@@ -7,7 +7,7 @@
     
     <!-- === COLLEGAMENTI PWA === -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0d47a1"> <!-- Aggiornato per combaciare con il manifest -->
+    <meta name="theme-color" content="#0d47a1"> 
     <link rel="apple-touch-icon" href="icons/192.png">
     
     <style>
@@ -46,7 +46,6 @@
         .btn-aggiungi { background-color: #28a745; } .btn-aggiungi:hover { background-color: #218838; }
         .btn-importa { background-color: #6f42c1; } .btn-importa:hover { background-color: #5a329f; }
         .btn-esporta { background-color: #fd7e14; } .btn-esporta:hover { background-color: #e06c0b; }
-        .btn-logout { background-color: #dc3545; padding: 4px 8px; font-size: 11px; float: right; margin-bottom: 10px; }
         
         .action-icon { cursor: pointer; font-size: 1.2em; text-decoration: none; transition: transform 0.2s; }
         .action-icon:hover { transform: scale(1.2); }
@@ -105,7 +104,6 @@
     <div id="appContent">
         <div>
             <span id="statusMessage"></span>
-            <button class="btn btn-logout" onclick="esciDalProfilo()">Esci</button>
         </div>
 
         <div class="mobile-header" onclick="togglePortfolio()">
@@ -177,7 +175,6 @@
     </div>
 
     <script>
-        // CONFIGURAZIONE FIRESTORE FORNITA DA TE
         const firebaseConfig = {
             apiKey: "AIzaSyB2KwsQ3sYNgKeNJcX9zRWi6h5AKkOayvs",
             authDomain: "portafogliotitoli.firebaseapp.com",
@@ -214,7 +211,8 @@
                     avviaApp(); 
                 } else {
                     alert("Accesso negato. L'account " + user.email + " non è autorizzato.");
-                    esciDalProfilo();
+                    // L'utente viene disconnesso se non è autorizzato
+                    auth.signOut();
                 }
             } else {
                 document.getElementById('loginScreen').style.display = 'flex';
@@ -238,6 +236,8 @@
                 });
         }
 
+        // Ho tenuto la funzione esciDalProfilo in JavaScript nel caso ti servisse in futuro, 
+        // ma ho rimosso il bottone HTML che la richiamava.
         function esciDalProfilo() {
             auth.signOut();
         }
