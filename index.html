@@ -363,29 +363,38 @@
         }
 
         function salvaCronologia() {
+            // Effetto visivo di caricamento sul pulsante
+            const btn = document.querySelector('.btn-salva');
+            const testoOriginale = btn.innerText;
+            btn.innerText = "⏳ Salvataggio in corso...";
+            btn.disabled = true;
+
             const today = new Date().toLocaleDateString('it-IT');
             const recordOdierno = { data: today, fondi: portafoglio.map(fondo => { const totale = fondo.qte * fondo.prezzoNav; const plusvalenza = totale - fondo.caricato; return { isin: fondo.isin, att: totale, car: fondo.caricato, fru: plusvalenza }; }) };
             
-            // Prepariamo l'aggiornamento
             let nuovaHistory = [...historyData];
             const indexGiaEsistente = nuovaHistory.findIndex(row => row.data === today);
             
             let messaggioSuccesso = "";
             if (indexGiaEsistente >= 0) { 
                 nuovaHistory[indexGiaEsistente] = recordOdierno; 
-                messaggioSuccesso = "Cronologia di oggi AGGIORNATA su Firestore!"; 
+                messaggioSuccesso = "✅ Cronologia di oggi AGGIORNATA su Firestore!"; 
             } else { 
                 nuovaHistory.unshift(recordOdierno); 
-                messaggioSuccesso = "Nuova cronologia SALVATA su Firestore!"; 
+                messaggioSuccesso = "✅ Nuova cronologia SALVATA su Firestore!"; 
             }
             
-            // Spediamo i dati a Firestore e ASPETTIAMO la conferma (.then)
             db.collection("app_dati").doc("cronologia").set({
                 storico: nuovaHistory
             }).then(() => {
-                // Questo avviso compare SOLO quando Google conferma di aver scritto i dati
+                // Sblocco il bottone e mostro l'avviso
+                btn.innerText = testoOriginale;
+                btn.disabled = false;
                 alert(messaggioSuccesso); 
             }).catch(error => {
+                // Sblocco il bottone anche in caso di errore
+                btn.innerText = testoOriginale;
+                btn.disabled = false;
                 console.error("Errore salvataggio su Firestore: ", error);
                 alert("Errore di connessione a Firestore. Il salvataggio NON è andato a buon fine.");
             });
