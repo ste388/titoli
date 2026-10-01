@@ -366,20 +366,28 @@
             const today = new Date().toLocaleDateString('it-IT');
             const recordOdierno = { data: today, fondi: portafoglio.map(fondo => { const totale = fondo.qte * fondo.prezzoNav; const plusvalenza = totale - fondo.caricato; return { isin: fondo.isin, att: totale, car: fondo.caricato, fru: plusvalenza }; }) };
             
-            const indexGiaEsistente = historyData.findIndex(row => row.data === today);
+            // Prepariamo l'aggiornamento
+            let nuovaHistory = [...historyData];
+            const indexGiaEsistente = nuovaHistory.findIndex(row => row.data === today);
+            
+            let messaggioSuccesso = "";
             if (indexGiaEsistente >= 0) { 
-                historyData[indexGiaEsistente] = recordOdierno; 
-                alert("Cronologia di oggi AGGIORNATA su Firestore!"); 
+                nuovaHistory[indexGiaEsistente] = recordOdierno; 
+                messaggioSuccesso = "Cronologia di oggi AGGIORNATA su Firestore!"; 
             } else { 
-                historyData.unshift(recordOdierno); 
-                alert("Nuova cronologia SALVATA su Firestore!"); 
+                nuovaHistory.unshift(recordOdierno); 
+                messaggioSuccesso = "Nuova cronologia SALVATA su Firestore!"; 
             }
             
+            // Spediamo i dati a Firestore e ASPETTIAMO la conferma (.then)
             db.collection("app_dati").doc("cronologia").set({
-                storico: historyData
+                storico: nuovaHistory
+            }).then(() => {
+                // Questo avviso compare SOLO quando Google conferma di aver scritto i dati
+                alert(messaggioSuccesso); 
             }).catch(error => {
                 console.error("Errore salvataggio su Firestore: ", error);
-                alert("Errore di connessione a Firestore. Assicurati di essere loggato.");
+                alert("Errore di connessione a Firestore. Il salvataggio NON è andato a buon fine.");
             });
         }
 
