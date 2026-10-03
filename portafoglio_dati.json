@@ -4,8 +4,8 @@
         "isin": "IT0001260618",
         "caricato": 3216.5,
         "qte": 181.334,
-        "prezzoNav": 21.61,
-        "lastUpdate": "02/10/2026 ore 17:43"
+        "prezzoNav": 21.74,
+        "lastUpdate": "03/10/2026 ore 17:43"
     },
     {
         "nome": "Obb 3Y",
@@ -13,7 +13,7 @@
         "caricato": 9995,
         "qte": 1987.472,
         "prezzoNav": 5.12,
-        "lastUpdate": "02/10/2026 ore 17:43"
+        "lastUpdate": "03/10/2026 ore 17:43"
     },
     {
         "nome": "Difesa 85",
@@ -21,15 +21,15 @@
         "caricato": 9757.21,
         "qte": 1549.747,
         "prezzoNav": 6.33,
-        "lastUpdate": "02/10/2026 ore 17:43"
+        "lastUpdate": "03/10/2026 ore 17:43"
     },
     {
         "nome": "Eurizon 40",
         "isin": "IT0001080388",
         "caricato": 835.22,
         "qte": 73.252,
-        "prezzoNav": 11.54,
-        "lastUpdate": "02/10/2026 ore 17:43"
+        "prezzoNav": 11.53,
+        "lastUpdate": "03/10/2026 ore 17:43"
     },
     {
         "nome": "Escx 27",
@@ -37,6 +37,6 @@
         "caricato": 3467.64,
         "qte": 3,
         "prezzoNav": 1209.424,
-        "lastUpdate": "02/10/2026 ore 17:43"
+        "lastUpdate": "03/10/2026 ore 17:43"
     }
 ]
