@@ -60,6 +60,8 @@
         .text-left { text-align: left !important; }
         .text-positive { color: #28a745; font-weight: bold; }
         .text-negative { color: #dc3545; font-weight: bold; }
+        .text-neutral { color: #17a2b8; font-weight: bold; }
+        .trend-sub { display: block; font-size: 0.8em; margin-top: 2px; }
 
         .mobile-header { display: none; background-color: #0078D7; color: white; padding: 12px 15px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 4px; margin-bottom: 10px; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 
@@ -211,7 +213,6 @@
                     avviaApp(); 
                 } else {
                     alert("Accesso negato. L'account " + user.email + " non è autorizzato.");
-                    // L'utente viene disconnesso se non è autorizzato
                     auth.signOut();
                 }
             } else {
@@ -234,12 +235,6 @@
                 .catch((error) => {
                     alert("Errore durante il login: " + error.message);
                 });
-        }
-
-        // Ho tenuto la funzione esciDalProfilo in JavaScript nel caso ti servisse in futuro, 
-        // ma ho rimosso il bottone HTML che la richiamava.
-        function esciDalProfilo() {
-            auth.signOut();
         }
 
         function salvaDatiNelBrowser() { localStorage.setItem('portafoglioDati', JSON.stringify(portafoglio)); }
@@ -363,7 +358,6 @@
         }
 
         function salvaCronologia() {
-            // Effetto visivo di caricamento sul pulsante
             const btn = document.querySelector('.btn-salva');
             const testoOriginale = btn.innerText;
             btn.innerText = "⏳ Salvataggio in corso...";
@@ -387,17 +381,29 @@
             db.collection("app_dati").doc("cronologia").set({
                 storico: nuovaHistory
             }).then(() => {
-                // Sblocco il bottone e mostro l'avviso
                 btn.innerText = testoOriginale;
                 btn.disabled = false;
                 alert(messaggioSuccesso); 
             }).catch(error => {
-                // Sblocco il bottone anche in caso di errore
                 btn.innerText = testoOriginale;
                 btn.disabled = false;
                 console.error("Errore salvataggio su Firestore: ", error);
                 alert("Errore di connessione a Firestore. Il salvataggio NON è andato a buon fine.");
             });
+        }
+
+        // Funzione di supporto per generare la freccina e la differenza sotto il valore
+        function getTrendHTML(valoreCorrente, valorePrecedente) {
+            if (valorePrecedente === undefined || valorePrecedente === null) return "";
+            const diff = valoreCorrente - valorePrecedente;
+            
+            if (diff > 0.009) {
+                return `<span class="trend-sub text-positive">▲ ${formatEuro2(Math.abs(diff))}</span>`;
+            } else if (diff < -0.009) {
+                return `<span class="trend-sub text-negative">▼ ${formatEuro2(Math.abs(diff))}</span>`;
+            } else {
+                return `<span class="trend-sub text-neutral">= ${formatEuro2(0)}</span>`;
+            }
         }
 
         function renderHistory() {
@@ -420,7 +426,10 @@
             thead.innerHTML = headerHTML;
             
             tbody.innerHTML = "";
-            historyData.forEach(row => {
+            
+            // historyData è ordinato dal più recente al più vecchio (unshift o inserimento in cima)
+            // Quindi la riga "precedente" nel tempo è quella all'indice i + 1 nell'array
+            historyData.forEach((row, index) => {
                 const tr = document.createElement("tr"); 
                 let totAtt = 0; let totFru = 0;
                 
@@ -430,19 +439,45 @@
                     });
                 }
                 
+                // Cerchiamo la riga precedente (cronologicamente il giorno prima) nell'array
+                const rowPrecedente = historyData[index + 1];
+                let prevTotFru = null;
+                if (rowPrecedente && rowPrecedente.fondi) {
+                    prevTotFru = 0;
+                    rowPrecedente.fondi.forEach(f => { prevTotFru += (f.fru || 0); });
+                }
+
                 const colorTotFru = totFru >= 0 ? 'text-positive' : 'text-negative';
+                const trendTotFru = getTrendHTML(totFru, prevTotFru);
+
                 let rowHTML = `<td class="text-center"><strong>${row.data}</strong></td>
                                <td style="background-color: #f4f8fb;"><strong>${formatEuro2(totAtt)}</strong></td>
-                               <td class="${colorTotFru}" style="background-color: #f4f8fb; border-right: 2px solid #ccc;"><strong>${formatEuro2(totFru)}</strong></td>`;
+                               <td class="${colorTotFru}" style="background-color: #f4f8fb; border-right: 2px solid #ccc;">
+                                   <strong>${formatEuro2(totFru)}</strong>
+                                   ${trendTotFru}
+                               </td>`;
                 
                 portafoglio.forEach(fondo => {
                     const storicoFondo = row.fondi.find(f => f.isin === fondo.isin) || { att: 0, car: 0, fru: 0 };
+                    
+                    let prevFru = null;
+                    if (rowPrecedente && rowPrecedente.fondi) {
+                        const fondoPrev = rowPrecedente.fondi.find(f => f.isin === fondo.isin);
+                        if (fondoPrev) prevFru = fondoPrev.fru;
+                    }
+
                     const colorClass = storicoFondo.fru >= 0 ? 'text-positive' : 'text-negative';
+                    const trendFru = getTrendHTML(storicoFondo.fru, prevFru);
+
                     rowHTML += `<td>${formatEuro2(storicoFondo.att)}</td>
                                 <td>${formatEuro2(storicoFondo.car)}</td>
-                                <td class="${colorClass}">${formatEuro2(storicoFondo.fru)}</td>`;
+                                <td class="${colorClass}">
+                                    ${formatEuro2(storicoFondo.fru)}
+                                    ${trendFru}
+                                </td>`;
                 });
-                tr.innerHTML = rowHTML; tbody.appendChild(tr);
+                tr.innerHTML = rowHTML; 
+                tbody.appendChild(tr);
             });
         }
 
