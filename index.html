@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portafoglio Fondi</title>
     
-    <!-- === COLLEGAMENTI PWA === -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0d47a1"> 
     <link rel="apple-touch-icon" href="icons/192.png">
@@ -231,10 +230,9 @@
                 return;
             }
 
-            auth.signInWithEmailAndPassword(email, password)
-                .catch((error) => {
-                    alert("Errore durante il login: " + error.message);
-                });
+            auth.signInWithEmailAndPassword(email, password).catch((error) => {
+                alert("Errore durante il login: " + error.message);
+            });
         }
 
         function salvaDatiNelBrowser() { localStorage.setItem('portafoglioDati', JSON.stringify(portafoglio)); }
@@ -252,15 +250,35 @@
         function renderTable() {
             const tbody = document.querySelector("#portfolioTable tbody");
             tbody.innerHTML = "";
+            
+            const todayStr = new Date().toLocaleDateString('it-IT');
+            const pastRecord = historyData.find(r => r.data !== todayStr);
+
             portafoglio.forEach((fondo, index) => {
                 const totale = fondo.qte * fondo.prezzoNav;
                 const plusvalenza = totale - fondo.caricato; 
                 const colorePlusvalenza = plusvalenza >= 0 ? 'text-positive' : 'text-negative';
+                
+                let trendHTML = "";
+                if (pastRecord && pastRecord.fondi) {
+                    const fondoPast = pastRecord.fondi.find(f => f.isin === fondo.isin);
+                    if (fondoPast) {
+                        const diff = plusvalenza - fondoPast.fru;
+                        if (diff > 0.009) {
+                            trendHTML = `<span style="color: #28a745; margin-left: 8px; font-weight: bold; font-size: 0.95em;" title="Rispetto al ${pastRecord.data}">▲ ${formatEuro2(Math.abs(diff))}</span>`;
+                        } else if (diff < -0.009) {
+                            trendHTML = `<span style="color: #dc3545; margin-left: 8px; font-weight: bold; font-size: 0.95em;" title="Rispetto al ${pastRecord.data}">▼ ${formatEuro2(Math.abs(diff))}</span>`;
+                        } else {
+                            trendHTML = `<span style="color: #17a2b8; margin-left: 8px; font-weight: bold; font-size: 0.95em;" title="Rispetto al ${pastRecord.data}">= ${formatEuro2(0)}</span>`;
+                        }
+                    }
+                }
+
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
                     <td class="text-left">
                         <div class="col-nome-container">
-                            <span class="col-nome-testo"><strong>${fondo.nome} - ${fondo.isin}</strong></span>
+                            <span class="col-nome-testo"><strong>${fondo.nome} - ${fondo.isin}</strong>${trendHTML}</span>
                             <div class="col-azioni">
                                 <span class="action-icon" onclick="apriModalModifica(${index})" title="Modifica Valori">✏️</span>
                                 <span class="action-icon" onclick="eliminaTitolo(${index})" title="Elimina Titolo">🗑️</span>
@@ -357,7 +375,8 @@
             downloadAnchorNode.remove();
         }
 
-        function salvaCronologia() {
+        // === MODIFICATA PER GESTIRE IL SALVATAGGIO SILENZIOSO (isAuto) ===
+        function salvaCronologia(isAuto = false) {
             const btn = document.querySelector('.btn-salva');
             const testoOriginale = btn.innerText;
             btn.innerText = "⏳ Salvataggio in corso...";
@@ -372,10 +391,10 @@
             let messaggioSuccesso = "";
             if (indexGiaEsistente >= 0) { 
                 nuovaHistory[indexGiaEsistente] = recordOdierno; 
-                messaggioSuccesso = "✅ Cronologia di oggi AGGIORNATA su Firestore!"; 
+                messaggioSuccesso = "✅ Cronologia odierna AGGIORNATA in automatico!"; 
             } else { 
                 nuovaHistory.unshift(recordOdierno); 
-                messaggioSuccesso = "✅ Nuova cronologia SALVATA su Firestore!"; 
+                messaggioSuccesso = "✅ Nuova cronologia SALVATA in automatico!"; 
             }
             
             db.collection("app_dati").doc("cronologia").set({
@@ -383,16 +402,29 @@
             }).then(() => {
                 btn.innerText = testoOriginale;
                 btn.disabled = false;
-                alert(messaggioSuccesso); 
+                
+                // Mostra sempre il testo a video al posto del popup fastidioso
+                document.getElementById("statusMessage").style.color = "#28a745";
+                document.getElementById("statusMessage").innerText = messaggioSuccesso;
+                setTimeout(() => { document.getElementById("statusMessage").innerText = ""; }, 5000);
+                
+                // Il popup a centro schermo compare SOLO se clicchi il tasto manualmente
+                if (!isAuto) {
+                    alert("Dati salvati correttamente su Firestore!"); 
+                }
             }).catch(error => {
                 btn.innerText = testoOriginale;
                 btn.disabled = false;
                 console.error("Errore salvataggio su Firestore: ", error);
-                alert("Errore di connessione a Firestore. Il salvataggio NON è andato a buon fine.");
+                if (!isAuto) {
+                    alert("Errore di connessione a Firestore. Il salvataggio NON è andato a buon fine.");
+                } else {
+                    document.getElementById("statusMessage").style.color = "#dc3545";
+                    document.getElementById("statusMessage").innerText = "❌ Errore nel salvataggio automatico";
+                }
             });
         }
 
-        // Funzione di supporto per generare la freccina e la differenza sotto il valore
         function getTrendHTML(valoreCorrente, valorePrecedente) {
             if (valorePrecedente === undefined || valorePrecedente === null) return "";
             const diff = valoreCorrente - valorePrecedente;
@@ -427,8 +459,6 @@
             
             tbody.innerHTML = "";
             
-            // historyData è ordinato dal più recente al più vecchio (unshift o inserimento in cima)
-            // Quindi la riga "precedente" nel tempo è quella all'indice i + 1 nell'array
             historyData.forEach((row, index) => {
                 const tr = document.createElement("tr"); 
                 let totAtt = 0; let totFru = 0;
@@ -439,7 +469,6 @@
                     });
                 }
                 
-                // Cerchiamo la riga precedente (cronologicamente il giorno prima) nell'array
                 const rowPrecedente = historyData[index + 1];
                 let prevTotFru = null;
                 if (rowPrecedente && rowPrecedente.fondi) {
@@ -486,6 +515,7 @@
                 if (doc.exists) {
                     historyData = doc.data().storico || [];
                     renderHistory();
+                    renderTable(); 
                 } else {
                     console.log("Il documento cronologia non esiste ancora.");
                 }
@@ -507,11 +537,15 @@
                 console.log("Nessun aggiornamento cloud trovato.");
             }
             renderTable();
+
+            // === NOVITÀ: SALVATAGGIO AUTOMATICO DOPO 10 SECONDI ===
+            setTimeout(() => {
+                console.log("Avvio salvataggio automatico invisibile...");
+                // Chiamo la funzione passando "true" (modalità silenziosa, senza popup)
+                salvaCronologia(true); 
+            }, 10000);
         }
 
-        // ==========================================
-        // REGISTRAZIONE DEL SERVICE WORKER (PER PWA)
-        // ==========================================
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
