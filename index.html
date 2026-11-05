@@ -9,6 +9,9 @@
     <meta name="theme-color" content="#0d47a1"> 
     <link rel="apple-touch-icon" href="icons/192.png">
     
+    <!-- Libreria Chart.js per i grafici -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f9; }
         
@@ -55,6 +58,10 @@
         .history-table .sub-header { display: block; font-size: 0.85em; font-weight: normal; color: #666; margin-top: 4px; }
         .history-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
         
+        /* Nuovo stile per il link al grafico nelle intestazioni della tabella storica */
+        .chart-link { cursor: pointer; color: #0056b3; text-decoration: underline; font-weight: bold; transition: color 0.2s; }
+        .chart-link:hover { color: #0078D7; }
+        
         .text-center { text-align: center !important; }
         .text-left { text-align: left !important; }
         .text-positive { color: #28a745; font-weight: bold; }
@@ -65,7 +72,7 @@
         .mobile-header { display: none; background-color: #0078D7; color: white; padding: 12px 15px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 4px; margin-bottom: 10px; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; }
-        .modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 320px; }
+        .modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 90%; max-width: 600px; }
         .modal h3 { margin-top: 0; color: #333; font-size: 18px; }
         .modal label { display: block; margin-top: 10px; font-size: 14px; font-weight: bold; color: #555;}
         .modal input { width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
@@ -75,6 +82,8 @@
         .btn-confirm { background-color: #0078D7; color: white; }
         
         #statusMessage { font-size: 0.9em; font-weight: bold; display: inline-block; margin-bottom: 15px; }
+        
+        .chart-container { position: relative; height: 300px; width: 100%; margin-top: 15px; }
 
         @media (max-width: 768px) {
             #appContent { padding: 10px; }
@@ -174,6 +183,18 @@
             </div>
         </div>
     </div>
+    
+    <div class="modal-overlay" id="chartModalOverlay">
+        <div class="modal">
+            <h3 id="chartTitle">Andamento Titolo</h3>
+            <div class="chart-container">
+                <canvas id="titoloChart"></canvas>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="chiudiModal('chartModalOverlay')">Chiudi</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         const firebaseConfig = {
@@ -192,6 +213,7 @@
         const auth = firebase.auth();
         
         let unsubscribeFirestore = null;
+        let titoloChartInstance = null; 
 
         const defaultPortafoglio = [
             { nome: "Energia", isin: "IT0001260618", caricato: 3216.50, qte: 181.334, prezzoNav: 22.130, lastUpdate: "-" },
@@ -293,6 +315,85 @@
                     <td class="text-center" style="font-size: 0.7em; color: #555;">${fondo.lastUpdate || "-"}</td>
                 `;
                 tbody.appendChild(tr);
+            });
+        }
+        
+        function apriGraficoTitolo(isin, nomeFondo) {
+            document.getElementById('chartTitle').innerText = `Andamento: ${nomeFondo} (${isin})`;
+            
+            let dateLabels = [];
+            let valoriFru = [];
+            
+            for (let i = historyData.length - 1; i >= 0; i--) {
+                const record = historyData[i];
+                const fondoStorico = record.fondi.find(f => f.isin === isin);
+                
+                if (fondoStorico) {
+                    dateLabels.push(record.data);
+                    valoriFru.push(fondoStorico.fru);
+                }
+            }
+            
+            if (dateLabels.length === 0) {
+                alert("Non ci sono dati storici sufficienti per visualizzare il grafico.");
+                return;
+            }
+
+            document.getElementById('chartModalOverlay').style.display = 'block';
+
+            if (titoloChartInstance) {
+                titoloChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('titoloChart').getContext('2d');
+            const pointColors = valoriFru.map(val => val >= 0 ? 'rgba(40, 167, 69, 1)' : 'rgba(220, 53, 69, 1)');
+            
+            titoloChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dateLabels,
+                    datasets: [{
+                        label: 'Valore Frutti (€)',
+                        data: valoriFru,
+                        borderColor: '#0078D7', 
+                        backgroundColor: 'rgba(0, 120, 215, 0.1)', 
+                        borderWidth: 2,
+                        pointBackgroundColor: pointColors,
+                        pointBorderColor: pointColors,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.3 
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    return '€ ' + value.toLocaleString('it-IT');
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) {
+                                        label += '€ ' + context.parsed.y.toLocaleString('it-IT', { minimumFractionDigits: 2 });
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
             });
         }
 
@@ -422,7 +523,6 @@
             });
         }
 
-        // === NUOVA FUNZIONE: ELIMINA RIGA CRONOLOGIA ===
         function eliminaRigaCronologia(index) {
             const rigaDaEliminare = historyData[index];
             if (confirm(`Sei sicuro di voler eliminare la rilevazione del ${rigaDaEliminare.data}?`)) {
@@ -469,10 +569,15 @@
             let headerHTML = `<tr>
                 <th rowspan="2" style="width: 90px; vertical-align: middle;">Data</th>
                 <th colspan="2" style="background-color: #d1ecf1; border-right: 2px solid #ccc;">Totale<span class="sub-header">Att | Fru</span></th>`;
+            
             portafoglio.forEach(fondo => { 
-                headerHTML += `<th colspan="3">${fondo.nome} - ${fondo.isin}<span class="sub-header">Att | Car | Fru</span></th>`; 
+                // Aggiunto onclick e la classe chart-link all'intestazione della tabella orizzontale
+                headerHTML += `<th colspan="3">
+                    <span class="chart-link" onclick="apriGraficoTitolo('${fondo.isin}', '${fondo.nome.replace(/'/g, "\\'")}')" title="Clicca per il grafico dell'andamento">${fondo.nome} - ${fondo.isin}</span>
+                    <span class="sub-header">Att | Car | Fru</span>
+                </th>`; 
             });
-            // Aggiungo la colonna "Azioni" alla fine dell'intestazione
+            
             headerHTML += `<th rowspan="2" style="width: 50px; vertical-align: middle;">Azioni</th></tr>`; 
             thead.innerHTML = headerHTML;
             
@@ -561,11 +666,6 @@
                 console.log("Nessun aggiornamento cloud trovato.");
             }
             renderTable();
-
-    //        setTimeout(() => {
-    //            console.log("Avvio salvataggio automatico invisibile...");
-    //            salvaCronologia(true); 
-    //        }, 10000);
         }
 
         if ('serviceWorker' in navigator) {
