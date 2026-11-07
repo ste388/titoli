@@ -40,8 +40,11 @@
 
         .history-container { width: 100%; overflow-x: auto; margin-top: 20px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); background-color: white; padding-bottom: 10px; }
         
+        /* Controlli sopra la tabella storica */
+        .history-controls { display: flex; justify-content: space-between; align-items: center; padding: 15px; flex-wrap: wrap; gap: 10px; }
+        
         .btn { display: inline-block; padding: 8px 16px; font-size: 13px; font-weight: bold; color: white; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        .btn-salva { background-color: #0078D7; margin: 15px; }
+        .btn-salva { background-color: #0078D7; margin: 0; }
         .btn-salva:hover { background-color: #005a9e; }
         
         .btn-table-action { padding: 5px 10px; font-size: 12px; margin-right: 4px; margin-bottom: 0; color: white; border: none; border-radius: 4px; cursor: pointer; }
@@ -58,7 +61,6 @@
         .history-table .sub-header { display: block; font-size: 0.85em; font-weight: normal; color: #666; margin-top: 4px; }
         .history-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
         
-        /* Nuovo stile per il link al grafico nelle intestazioni della tabella storica */
         .chart-link { cursor: pointer; color: #0056b3; text-decoration: underline; font-weight: bold; transition: color 0.2s; }
         .chart-link:hover { color: #0078D7; }
         
@@ -145,7 +147,16 @@
         </div>
 
         <div class="history-container">
-            <button class="btn btn-salva" onclick="salvaCronologia()">💾 Salva Cronologia Odierna</button>
+            <div class="history-controls">
+                <button class="btn btn-salva" onclick="salvaCronologia()">💾 Salva Cronologia Odierna</button>
+                <div>
+                    <label for="yearFilter" style="font-weight: bold; font-size: 13px; color: #555;">📅 Filtra per anno:</label>
+                    <select id="yearFilter" onchange="cambiaAnno()" style="margin-left: 5px; padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; font-weight: bold;">
+                        <option value="all">Tutti gli anni</option>
+                    </select>
+                </div>
+            </div>
+            
             <div class="table-wrapper" style="box-shadow: none; margin-bottom: 0;">
                 <table class="history-table" id="historyTable">
                     <thead></thead>
@@ -214,6 +225,9 @@
         
         let unsubscribeFirestore = null;
         let titoloChartInstance = null; 
+        
+        // Nuova variabile per tenere traccia dell'anno selezionato nella tendina
+        let annoSelezionato = "all";
 
         const defaultPortafoglio = [
             { nome: "Energia", isin: "IT0001260618", caricato: 3216.50, qte: 181.334, prezzoNav: 22.130, lastUpdate: "-" },
@@ -268,6 +282,49 @@
             wrapper.classList.toggle("show");
             if (wrapper.classList.contains("show")) { arrow.innerText = "▲"; } else { arrow.innerText = "▼"; }
         }
+        
+        // --- FUNZIONE PER POPOLARE LA TENDINA DEGLI ANNI ---
+        function popolaTendinaAnni() {
+            const select = document.getElementById("yearFilter");
+            
+            // Estrae tutti gli anni univoci dalla cronologia
+            const anniDisponibili = new Set();
+            historyData.forEach(r => {
+                const parti = r.data.split('/');
+                if (parti.length >= 3) {
+                    const anno = parti[2].substring(0, 4); // Prende solo l'anno a 4 cifre
+                    anniDisponibili.add(anno);
+                }
+            });
+            
+            // Ordina gli anni dal più recente al più vecchio
+            const arrayAnni = Array.from(anniDisponibili).sort((a, b) => b - a);
+            
+            // Mantiene la selezione corrente se esiste ancora
+            const currentSelection = select.value;
+            
+            select.innerHTML = '<option value="all">Tutti gli anni</option>';
+            arrayAnni.forEach(anno => {
+                const opt = document.createElement('option');
+                opt.value = anno;
+                opt.innerText = anno;
+                select.appendChild(opt);
+            });
+            
+            if (arrayAnni.includes(currentSelection) || currentSelection === 'all') {
+                select.value = currentSelection;
+                annoSelezionato = currentSelection;
+            } else {
+                select.value = 'all';
+                annoSelezionato = 'all';
+            }
+        }
+
+        // --- FUNZIONE CHE SCATTA QUANDO CAMBI L'ANNO ---
+        function cambiaAnno() {
+            annoSelezionato = document.getElementById("yearFilter").value;
+            renderHistory();
+        }
 
         function renderTable() {
             const tbody = document.querySelector("#portfolioTable tbody");
@@ -319,15 +376,20 @@
         }
         
         function apriGraficoTitolo(isin, nomeFondo) {
-            document.getElementById('chartTitle').innerText = `Andamento: ${nomeFondo} (${isin})`;
+            let testoAnno = annoSelezionato === "all" ? "" : ` (Anno ${annoSelezionato})`;
+            document.getElementById('chartTitle').innerText = `Andamento: ${nomeFondo}${testoAnno}`;
             
             let dateLabels = [];
             let valoriFru = [];
             
             for (let i = historyData.length - 1; i >= 0; i--) {
                 const record = historyData[i];
-                const fondoStorico = record.fondi.find(f => f.isin === isin);
                 
+                // Filtro anno anche per il grafico
+                const rowYear = record.data.split('/')[2].substring(0, 4);
+                if (annoSelezionato !== "all" && rowYear !== annoSelezionato) continue;
+
+                const fondoStorico = record.fondi.find(f => f.isin === isin);
                 if (fondoStorico) {
                     dateLabels.push(record.data);
                     valoriFru.push(fondoStorico.fru);
@@ -335,7 +397,7 @@
             }
             
             if (dateLabels.length === 0) {
-                alert("Non ci sono dati storici sufficienti per visualizzare il grafico.");
+                alert("Non ci sono dati storici sufficienti per visualizzare il grafico per il periodo selezionato.");
                 return;
             }
 
@@ -571,7 +633,6 @@
                 <th colspan="2" style="background-color: #d1ecf1; border-right: 2px solid #ccc;">Totale<span class="sub-header">Att | Fru</span></th>`;
             
             portafoglio.forEach(fondo => { 
-                // Aggiunto onclick e la classe chart-link all'intestazione della tabella orizzontale
                 headerHTML += `<th colspan="3">
                     <span class="chart-link" onclick="apriGraficoTitolo('${fondo.isin}', '${fondo.nome.replace(/'/g, "\\'")}')" title="Clicca per il grafico dell'andamento">${fondo.nome} - ${fondo.isin}</span>
                     <span class="sub-header">Att | Car | Fru</span>
@@ -583,7 +644,15 @@
             
             tbody.innerHTML = "";
             
+            // Variabile per contare se ci sono righe da mostrare per l'anno selezionato
+            let righeMostrate = 0;
+            
             historyData.forEach((row, index) => {
+                // FILTRO ANNO:
+                const rowYear = row.data.split('/')[2].substring(0, 4);
+                if (annoSelezionato !== "all" && rowYear !== annoSelezionato) return; // Salta questa riga se non è dell'anno scelto
+                
+                righeMostrate++;
                 const tr = document.createElement("tr"); 
                 let totAtt = 0; let totFru = 0;
                 
@@ -593,6 +662,8 @@
                     });
                 }
                 
+                // Cerca sempre il giorno PRECEDENTE nell'array originale, 
+                // in modo che l'inizio dell'anno confronti i dati con la fine dell'anno precedente
                 const rowPrecedente = historyData[index + 1];
                 let prevTotFru = null;
                 if (rowPrecedente && rowPrecedente.fondi) {
@@ -637,12 +708,18 @@
                 tr.innerHTML = rowHTML; 
                 tbody.appendChild(tr);
             });
+            
+            // Messaggio se non ci sono dati per l'anno selezionato
+            if (righeMostrate === 0) {
+                tbody.innerHTML = `<tr><td colspan="${(portafoglio.length * 3) + 3}" class="text-center">Nessun dato presente per l'anno selezionato.</td></tr>`;
+            }
         }
 
         async function avviaApp() {
             unsubscribeFirestore = db.collection("app_dati").doc("cronologia").onSnapshot((doc) => {
                 if (doc.exists) {
                     historyData = doc.data().storico || [];
+                    popolaTendinaAnni(); // Aggiorna gli anni disponibili
                     renderHistory();
                     renderTable(); 
                 } else {
